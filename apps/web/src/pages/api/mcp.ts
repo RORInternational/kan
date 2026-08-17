@@ -35,10 +35,20 @@ export default async function handler(
     return res.status(405).json(jsonRpcError(-32000, "Method not allowed"));
   }
 
-  const authorization = req.headers.authorization;
-  const apiToken = authorization?.startsWith("Bearer ")
-    ? authorization.slice(7).trim()
-    : undefined;
+  // Mirrors customAPIKeyGetter in packages/auth/src/plugins.ts, which already
+  // accepts either header. A bare Authorization value is tolerated too: MCP
+  // clients expose a "bearer token" field that some users fill with just the
+  // key, and the resulting 401 reads like a bad key rather than a bad header.
+  const authorization = req.headers.authorization?.trim();
+  const apiKeyHeader = req.headers["x-api-key"];
+
+  const apiToken =
+    (authorization
+      ? authorization.startsWith("Bearer ")
+        ? authorization.slice(7).trim()
+        : authorization
+      : undefined) ??
+    (typeof apiKeyHeader === "string" ? apiKeyHeader.trim() : undefined);
 
   if (!apiToken) {
     return res
@@ -46,7 +56,7 @@ export default async function handler(
       .json(
         jsonRpcError(
           -32001,
-          "Missing bearer token. Send your Kan API key as 'Authorization: Bearer kan_...'.",
+          "Missing API key. Send it as 'Authorization: Bearer kan_...' or 'x-api-key: kan_...'.",
         ),
       );
   }
