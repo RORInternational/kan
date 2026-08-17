@@ -9,3 +9,4 @@ export type NewListInput = RouterInputs["list"]["create"];
 export type NewCardInput = RouterInputs["card"]["create"];
 export type NewBoardInput = RouterInputs["board"]["create"];
 export type InviteMemberInput = RouterInputs["member"]["invite"];
+export type CreateMemberAccountInput = RouterInputs["member"]["createAccount"];

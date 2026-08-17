@@ -22,6 +22,15 @@ Kan is an open-source project management tool (Trello alternative) built with:
 - Format code: `pnpm format:fix`
 - Extract i18n strings: `pnpm lingui:extract`
 
+## Development Environment
+
+- Run `pnpm dev` from the repository root; Turbo starts the workspace services.
+- The Next.js web app has fixed port `3000` and binds to `0.0.0.0`.
+- Local web URL: `http://localhost:3000`.
+- Tailscale web URL: `http://dnd-ms-2s-mac-studio.tail6f8395.ts.net:3000`.
+- Mintlify docs use port `3001`; do not assign that port to the web app.
+- Do not replace the fixed web port with an ad-hoc `next dev` command. If the Tailscale hostname changes, verify it with `tailscale status --json`.
+
 ## Project Structure
 
 - `apps/web/` - Next.js web application

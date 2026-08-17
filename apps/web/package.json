@@ -6,10 +6,10 @@
   "scripts": {
     "build": "pnpm with-env next build --turbo",
     "clean": "git clean -xdf .cache .next .turbo node_modules",
-    "dev": "pnpm with-env next dev --turbo",
+    "dev": "pnpm with-env next dev --turbo --hostname 0.0.0.0 --port 3000",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint",
-    "start": "pnpm with-env next start",
+    "start": "pnpm with-env next start --hostname 0.0.0.0 --port 3000",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

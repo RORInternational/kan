@@ -2,12 +2,14 @@ import { TRPCError } from "@trpc/server";
 import { env } from "next-runtime-env";
 import { z } from "zod";
 
+import { hashPassword } from "@kan/auth/server";
 import * as inviteLinkRepo from "@kan/db/repository/inviteLink.repo";
 import * as memberRepo from "@kan/db/repository/member.repo";
 import * as permissionRepo from "@kan/db/repository/permission.repo";
 import * as subscriptionRepo from "@kan/db/repository/subscription.repo";
 import * as userRepo from "@kan/db/repository/user.repo";
 import * as workspaceRepo from "@kan/db/repository/workspace.repo";
+import { account, users, workspaceMembers } from "@kan/db/schema";
 import {
   generateUID,
   getSeatLimit,
@@ -180,6 +182,177 @@ export const memberRouter = createTRPCRouter({
       }
 
       return invite;
+    }),
+  createAccount: protectedProcedure
+    .meta({
+      openapi: {
+        summary: "Create a member account",
+        method: "POST",
+        path: "/workspaces/{workspacePublicId}/members/create-account",
+        description:
+          "Creates a credential account and adds it directly to a self-hosted workspace",
+        tags: ["Workspaces"],
+        protect: true,
+      },
+    })
+    .input(
+      z.object({
+        name: z.string().trim().min(3).max(255),
+        email: z.string().trim().email(),
+        password: z.string().min(8).max(128),
+        role: z.enum(["admin", "member", "guest"]),
+        workspacePublicId: z.string().min(12),
+      }),
+    )
+    .output(memberInviteResponseSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user?.id;
+
+      if (!userId) {
+        throw new TRPCError({
+          message: "User not authenticated",
+          code: "UNAUTHORIZED",
+        });
+      }
+
+      if (process.env.NEXT_PUBLIC_KAN_ENV === "cloud") {
+        throw new TRPCError({
+          message:
+            "Direct account creation is only available when self-hosting",
+          code: "FORBIDDEN",
+        });
+      }
+
+      const workspace = await workspaceRepo.getByPublicIdWithMembers(
+        ctx.db,
+        input.workspacePublicId,
+      );
+
+      if (!workspace) {
+        throw new TRPCError({
+          message: "Workspace not found",
+          code: "NOT_FOUND",
+        });
+      }
+
+      await assertPermission(ctx.db, userId, workspace.id, "member:invite");
+      await assertCanManageRole(ctx.db, userId, workspace.id, input.role);
+
+      const email = input.email.toLowerCase();
+      const isAlreadyMember = workspace.members.some(
+        (member) => member.email.toLowerCase() === email,
+      );
+
+      if (isAlreadyMember) {
+        throw new TRPCError({
+          message: "User is already a member of this workspace",
+          code: "CONFLICT",
+        });
+      }
+
+      const existingUser = await userRepo.getByEmail(ctx.db, email);
+
+      if (existingUser) {
+        throw new TRPCError({
+          message: "An account with this email already exists",
+          code: "CONFLICT",
+        });
+      }
+
+      const allowedDomains = process.env.BETTER_AUTH_ALLOWED_DOMAINS?.split(",")
+        .map((domain) => domain.trim().toLowerCase())
+        .filter(Boolean);
+      const emailDomain = email.split("@")[1];
+
+      if (
+        allowedDomains?.length &&
+        (!emailDomain || !allowedDomains.includes(emailDomain))
+      ) {
+        throw new TRPCError({
+          message: "Email domain is not allowed",
+          code: "FORBIDDEN",
+        });
+      }
+
+      const workspaceRole = await permissionRepo.getRoleByWorkspaceIdAndName(
+        ctx.db,
+        workspace.id,
+        input.role,
+      );
+
+      if (!workspaceRole) {
+        throw new TRPCError({
+          message: "Workspace role not found",
+          code: "NOT_FOUND",
+        });
+      }
+
+      const password = await hashPassword(input.password);
+
+      try {
+        const member = await ctx.db.transaction(async (tx) => {
+          const [createdUser] = await tx
+            .insert(users)
+            .values({
+              name: input.name,
+              email,
+              emailVerified: false,
+            })
+            .returning({ id: users.id });
+
+          if (!createdUser) {
+            throw new Error("Failed to create user");
+          }
+
+          const now = new Date();
+          await tx.insert(account).values({
+            accountId: createdUser.id,
+            providerId: "credential",
+            userId: createdUser.id,
+            password,
+            createdAt: now,
+            updatedAt: now,
+          });
+
+          const [createdMember] = await tx
+            .insert(workspaceMembers)
+            .values({
+              publicId: generateUID(),
+              email,
+              userId: createdUser.id,
+              workspaceId: workspace.id,
+              createdBy: userId,
+              role: input.role,
+              roleId: workspaceRole.id,
+              status: "active",
+            })
+            .returning({ publicId: workspaceMembers.publicId });
+
+          if (!createdMember) {
+            throw new Error("Failed to create workspace member");
+          }
+
+          return createdMember;
+        });
+
+        return member;
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("unique constraint")
+        ) {
+          throw new TRPCError({
+            message: "An account with this email already exists",
+            code: "CONFLICT",
+          });
+        }
+
+        throw new TRPCError({
+          message: "Unable to create member account",
+          code: "INTERNAL_SERVER_ERROR",
+          cause: error,
+        });
+      }
     }),
   delete: protectedProcedure
     .meta({

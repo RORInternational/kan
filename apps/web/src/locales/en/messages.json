@@ -195,11 +195,11 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        169
+        239
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        181
+        251
       ]
     ],
     "translation": "$10/month"
@@ -211,7 +211,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        181
+        251
       ]
     ],
     "translation": "$8/month"
@@ -303,6 +303,18 @@
       ]
     ],
     "translation": "Account"
+  },
+  "Lf1geV": {
+    "message": "Account created",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        163
+      ]
+    ],
+    "translation": "Account created"
   },
   "TKFUnX": {
     "message": "Account deleted",
@@ -539,7 +551,7 @@
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        243
+        325
       ]
     ],
     "translation": "Add member"
@@ -737,7 +749,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        320
+        488
       ]
     ],
     "translation": "Adding a new member will cost an additional {price} ({billingType}) per seat."
@@ -759,6 +771,10 @@
     "placeholders": {},
     "comments": [],
     "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        425
+      ],
       [
         "src/views/members/index.tsx",
         221
@@ -918,6 +934,18 @@
     ],
     "translation": "Already have an account? <0><1>Sign in</1></0>"
   },
+  "/PGSQT": {
+    "message": "An account with this email already exists. Use Send invite instead.",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        176
+      ]
+    ],
+    "translation": "An account with this email already exists. Use Send invite instead."
+  },
   "j1+HPc": {
     "message": "An error occurred while connecting your GitHub account.",
     "placeholders": {},
@@ -985,7 +1013,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        294
+        462
       ]
     ],
     "translation": "Anyone with this link can join your workspace"
@@ -1417,7 +1445,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        182
+        252
       ]
     ],
     "translation": "billed annually"
@@ -1429,7 +1457,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        182
+        252
       ]
     ],
     "translation": "billed monthly"
@@ -2449,7 +2477,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        355
+        523
       ],
       [
         "src/views/settings/BillingSettings.tsx",
@@ -3059,6 +3087,22 @@
     ],
     "translation": "Create {0}"
   },
+  "1hMWR6": {
+    "message": "Create account",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        360
+      ],
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        539
+      ]
+    ],
+    "translation": "Create account"
+  },
   "vgdzLf": {
     "message": "Create another",
     "placeholders": {},
@@ -3122,7 +3166,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        343
+        511
       ]
     ],
     "translation": "Create invite link"
@@ -3483,7 +3527,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        342
+        510
       ]
     ],
     "translation": "Deactivate invite link"
@@ -3798,6 +3842,10 @@
     "comments": [],
     "origin": [
       [
+        "src/views/members/components/InviteMemberForm.tsx",
+        390
+      ],
+      [
         "src/views/settings/AccountSettings.tsx",
         36
       ]
@@ -3821,6 +3869,10 @@
     "placeholders": {},
     "comments": [],
     "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        76
+      ],
       [
         "src/views/settings/components/UpdateDisplayNameForm.tsx",
         19
@@ -4240,7 +4292,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        258
+        370
       ],
       [
         "src/views/settings/AccountSettings.tsx",
@@ -4248,6 +4300,18 @@
       ]
     ],
     "translation": "Email"
+  },
+  "sGwWPa": {
+    "message": "Email delivery is disabled. Configure SMTP to send email invitations, or create the account directly.",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        379
+      ]
+    ],
+    "translation": "Email delivery is disabled. Configure SMTP to send email invitations, or create the account directly."
   },
   "aW3TOw": {
     "message": "Email notifications",
@@ -4456,7 +4520,7 @@
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        226
+        300
       ]
     ],
     "translation": "Error"
@@ -4492,7 +4556,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        136
+        206
       ]
     ],
     "translation": "Error creating invite link"
@@ -4504,7 +4568,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        152
+        222
       ]
     ],
     "translation": "Error deactivating invite link"
@@ -4576,11 +4640,11 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        96
+        134
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        111
+        149
       ]
     ],
     "translation": "Error inviting member"
@@ -4769,7 +4833,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        227
+        301
       ]
     ],
     "translation": "Failed to copy invite link"
@@ -5117,7 +5181,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        326
+        494
       ],
       [
         "src/views/members/index.tsx",
@@ -5500,6 +5564,10 @@
     "comments": [],
     "origin": [
       [
+        "src/views/members/components/InviteMemberForm.tsx",
+        424
+      ],
+      [
         "src/views/members/index.tsx",
         223
       ]
@@ -5854,6 +5922,18 @@
     ],
     "translation": "Individuals"
   },
+  "vygnHw": {
+    "message": "Initial password",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        406
+      ]
+    ],
+    "translation": "Initial password"
+  },
   "nbfdhU": {
     "message": "Integrations",
     "placeholders": {},
@@ -5901,7 +5981,11 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        50
+        55
+      ],
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        77
       ]
     ],
     "translation": "Invalid email address"
@@ -5917,6 +6001,18 @@
       ]
     ],
     "translation": "Invalid invitation"
+  },
+  "oNCcm2": {
+    "message": "Invitation sent",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        124
+      ]
+    ],
+    "translation": "Invitation sent"
   },
   "MFKlMB": {
     "message": "Invite",
@@ -5937,7 +6033,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        220
+        294
       ]
     ],
     "translation": "Invite link copied"
@@ -5949,7 +6045,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        221
+        295
       ]
     ],
     "translation": "Invite link copied to clipboard"
@@ -5977,7 +6073,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        131
+        201
       ]
     ],
     "translation": "Invite links require a Team or Pro subscription. Please upgrade your workspace."
@@ -5993,7 +6089,7 @@
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        363
+        531
       ]
     ],
     "translation": "Invite member"
@@ -6005,7 +6101,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        329
+        497
       ]
     ],
     "translation": "Inviting members requires a Team or Pro plan. You'll be redirected to upgrade your workspace."
@@ -6440,6 +6536,18 @@
     ],
     "translation": "Login | kan.bn"
   },
+  "+XZxeq": {
+    "message": "Login email",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        398
+      ]
+    ],
+    "translation": "Login email"
+  },
   "nOhz3x": {
     "message": "Logout",
     "placeholders": {},
@@ -6618,6 +6726,10 @@
         88
       ],
       [
+        "src/views/members/components/InviteMemberForm.tsx",
+        423
+      ],
+      [
         "src/views/members/index.tsx",
         222
       ]
@@ -6735,7 +6847,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        170
+        240
       ]
     ],
     "translation": "monthly billing"
@@ -7561,6 +7673,10 @@
     "comments": [],
     "origin": [
       [
+        "src/views/members/components/InviteMemberForm.tsx",
+        80
+      ],
+      [
         "src/views/settings/components/ChangePasswordConfirmation.tsx",
         23
       ]
@@ -8046,7 +8162,11 @@
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        112
+        150
+      ],
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        182
       ],
       [
         "src/views/members/index.tsx",
@@ -8106,11 +8226,11 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        137
+        207
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        153
+        223
       ]
     ],
     "translation": "Please try again later."
@@ -8274,7 +8394,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        305
+        473
       ],
       [
         "src/views/members/index.tsx",
@@ -8290,7 +8410,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        317
+        485
       ]
     ],
     "translation": "Pro Plan ∞"
@@ -8716,6 +8836,10 @@
     "comments": [],
     "origin": [
       [
+        "src/views/members/components/InviteMemberForm.tsx",
+        416
+      ],
+      [
         "src/views/members/index.tsx",
         352
       ]
@@ -8857,7 +8981,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        105
+        143
       ]
     ],
     "translation": "Seat limit reached"
@@ -8869,7 +8993,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        308
+        476
       ],
       [
         "src/views/members/index.tsx",
@@ -9037,6 +9161,18 @@
       ]
     ],
     "translation": "Send feedback"
+  },
+  "Hvnq/n": {
+    "message": "Send invite",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        349
+      ]
+    ],
+    "translation": "Send invite"
   },
   "eus61c": {
     "message": "Send test",
@@ -9597,7 +9733,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        130
+        200
       ]
     ],
     "translation": "Subscription Required"
@@ -9701,11 +9837,11 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        305
+        473
       ],
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        317
+        485
       ],
       [
         "src/views/members/index.tsx",
@@ -9922,6 +10058,30 @@
     ],
     "translation": "That license key could not be found. Please contact support."
   },
+  "Pxl8mp": {
+    "message": "The account can sign in immediately. Passwords must contain at least 8 characters.",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        431
+      ]
+    ],
+    "translation": "The account can sign in immediately. Passwords must contain at least 8 characters."
+  },
+  "ZVubX3": {
+    "message": "The account was created and added to this workspace.",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        164
+      ]
+    ],
+    "translation": "The account was created and added to this workspace."
+  },
   "NcFrgC": {
     "message": "The board has been archived.",
     "placeholders": {},
@@ -9997,6 +10157,18 @@
       ]
     ],
     "translation": "The main difference between Kan and Trello is that Kan is open source, allowing anyone to view, modify, and contribute to our code. Our cloud offering also offers no restrictions on features for individual use, whereas Trello locks basic features such as the number of boards you can create behind a paywall."
+  },
+  "g3Uyw5": {
+    "message": "The member invitation has been sent.",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        125
+      ]
+    ],
+    "translation": "The member invitation has been sent."
   },
   "6tDFBe": {
     "message": "The member's permissions have been updated.",
@@ -10521,6 +10693,22 @@
       ]
     ],
     "translation": "Unable to copy link"
+  },
+  "0dRkuK": {
+    "message": "Unable to create account",
+    "placeholders": {},
+    "comments": [],
+    "origin": [
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        173
+      ],
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        181
+      ]
+    ],
+    "translation": "Unable to create account"
   },
   "zl1b97": {
     "message": "Unable to create card",
@@ -11522,7 +11710,11 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        97
+        135
+      ],
+      [
+        "src/views/members/components/InviteMemberForm.tsx",
+        175
       ]
     ],
     "translation": "User is already a member of this workspace"
@@ -12410,7 +12602,7 @@
     "origin": [
       [
         "src/views/members/components/InviteMemberForm.tsx",
-        106
+        144
       ]
     ],
     "translation": "You've reached your {0}-seat limit. Please upgrade your plan to add more members."

@@ -11,7 +11,10 @@ import {
 } from "react-icons/hi2";
 import { z } from "zod";
 
-import type { InviteMemberInput } from "@kan/api/types";
+import type {
+  CreateMemberAccountInput,
+  InviteMemberInput,
+} from "@kan/api/types";
 import type { Subscription } from "@kan/shared/utils";
 import { getSubscriptionByPlan } from "@kan/shared/utils";
 
@@ -35,6 +38,7 @@ export function InviteMemberForm({
   seatLimit: number | null;
 }) {
   const utils = api.useUtils();
+  const [mode, setMode] = useState<"invite" | "create">("invite");
   const [isShareInviteLinkEnabled, setIsShareInviteLinkEnabled] =
     useState(false);
   const [inviteLink, setInviteLink] = useState<string>("");
@@ -45,6 +49,7 @@ export function InviteMemberForm({
   const { showPopup } = usePopup();
 
   const isEmailEnabled = env("NEXT_PUBLIC_DISABLE_EMAIL") !== "true";
+  const isSelfHosted = env("NEXT_PUBLIC_KAN_ENV") !== "cloud";
 
   const InviteMemberSchema = z.object({
     email: z.string().email({ message: t`Invalid email address` }),
@@ -52,16 +57,45 @@ export function InviteMemberForm({
   });
 
   const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
+    register: registerInvite,
+    handleSubmit: handleInviteSubmit,
+    reset: resetInvite,
+    formState: { errors: inviteErrors },
   } = useForm<InviteMemberInput>({
     defaultValues: {
       email: "",
       workspacePublicId: workspace.publicId || "",
     },
     resolver: zodResolver(InviteMemberSchema),
+  });
+
+  const CreateAccountSchema = z.object({
+    name: z
+      .string()
+      .trim()
+      .min(3, { message: t`Display name must be at least 3 characters long` }),
+    email: z.string().email({ message: t`Invalid email address` }),
+    password: z
+      .string()
+      .min(8, { message: t`Password must be at least 8 characters` }),
+    role: z.enum(["admin", "member", "guest"]),
+    workspacePublicId: z.string(),
+  });
+
+  const {
+    register: registerAccount,
+    handleSubmit: handleAccountSubmit,
+    setValue: setAccountValue,
+    formState: { errors: accountErrors },
+  } = useForm<CreateMemberAccountInput>({
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: "member",
+      workspacePublicId: workspace.publicId || "",
+    },
+    resolver: zodResolver(CreateAccountSchema),
   });
 
   const refetchBoards = () => utils.board.all.refetch();
@@ -86,10 +120,14 @@ export function InviteMemberForm({
       closeModal();
       await utils.workspace.byId.refetch();
       await refetchBoards();
+      showPopup({
+        header: t`Invitation sent`,
+        message: t`The member invitation has been sent.`,
+        icon: "success",
+      });
     },
     onError: (error) => {
-      reset();
-      if (!isShareInviteLinkEnabled) closeModal();
+      resetInvite();
 
       if (error.data?.code === "CONFLICT") {
         showPopup({
@@ -109,6 +147,38 @@ export function InviteMemberForm({
       } else {
         showPopup({
           header: t`Error inviting member`,
+          message: t`Please try again later, or contact customer support.`,
+          icon: "error",
+        });
+      }
+    },
+  });
+
+  const createAccount = api.member.createAccount.useMutation({
+    onSuccess: async () => {
+      closeModal();
+      await utils.workspace.byId.refetch();
+      await refetchBoards();
+      showPopup({
+        header: t`Account created`,
+        message: t`The account was created and added to this workspace.`,
+        icon: "success",
+      });
+    },
+    onError: (error) => {
+      setAccountValue("password", "");
+
+      if (error.data?.code === "CONFLICT") {
+        showPopup({
+          header: t`Unable to create account`,
+          message: error.message.includes("already a member")
+            ? t`User is already a member of this workspace`
+            : t`An account with this email already exists. Use Send invite instead.`,
+          icon: "error",
+        });
+      } else {
+        showPopup({
+          header: t`Unable to create account`,
           message: t`Please try again later, or contact customer support.`,
           icon: "error",
         });
@@ -182,8 +252,12 @@ export function InviteMemberForm({
     billingType = isYearly ? t`billed annually` : t`billed monthly`;
   }
 
-  const onSubmit = (member: InviteMemberInput) => {
+  const onInviteSubmit = (member: InviteMemberInput) => {
     inviteMember.mutate(member);
+  };
+
+  const onAccountSubmit = (member: CreateMemberAccountInput) => {
+    createAccount.mutate(member);
   };
 
   const isFreePlan =
@@ -232,18 +306,26 @@ export function InviteMemberForm({
 
   useEffect(() => {
     const emailElement: HTMLElement | null =
-      document.querySelector<HTMLElement>("#email");
+      document.querySelector<HTMLElement>(
+        mode === "invite" ? "#invite-email" : "#account-name",
+      );
     if (emailElement) emailElement.focus();
-  }, []);
+  }, [mode]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form
+      onSubmit={
+        mode === "invite"
+          ? handleInviteSubmit(onInviteSubmit)
+          : handleAccountSubmit(onAccountSubmit)
+      }
+    >
       <div className="px-5 pt-5">
         <div className="text-neutral-9000 flex w-full items-center justify-between pb-4 dark:text-dark-1000">
           <h2 className="text-sm font-bold">{t`Add member`}</h2>
           <button
             type="button"
-            className="hover:bg-li ght-300 rounded p-1 focus:outline-none dark:hover:bg-dark-300"
+            className="rounded p-1 hover:bg-light-300 focus:outline-none dark:hover:bg-dark-300"
             onClick={(e) => {
               e.preventDefault();
               closeModal();
@@ -252,22 +334,108 @@ export function InviteMemberForm({
             <HiXMark size={18} className="dark:text-dark-9000 text-light-900" />
           </button>
         </div>
-        {isEmailEnabled && (
-          <Input
-            id="email"
-            placeholder={t`Email`}
-            disabled={isFreePlan}
-            {...register("email", { required: true })}
-            onKeyDown={async (e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                await handleSubmit(onSubmit)();
-              }
-            }}
-            errorMessage={errors.email?.message}
-          />
+
+        {isSelfHosted && (
+          <div className="mb-4 grid grid-cols-2 rounded-md bg-light-200 p-1 dark:bg-dark-200">
+            <button
+              type="button"
+              className={`rounded px-3 py-2 text-xs font-medium ${
+                mode === "invite"
+                  ? "bg-light-50 text-light-1000 shadow-sm dark:bg-dark-300 dark:text-dark-1000"
+                  : "text-light-900 dark:text-dark-900"
+              }`}
+              onClick={() => setMode("invite")}
+            >
+              {t`Send invite`}
+            </button>
+            <button
+              type="button"
+              className={`rounded px-3 py-2 text-xs font-medium ${
+                mode === "create"
+                  ? "bg-light-50 text-light-1000 shadow-sm dark:bg-dark-300 dark:text-dark-1000"
+                  : "text-light-900 dark:text-dark-900"
+              }`}
+              onClick={() => setMode("create")}
+            >
+              {t`Create account`}
+            </button>
+          </div>
         )}
-        {!isFreePlan &&
+
+        {mode === "invite" && (
+          <div className="space-y-3">
+            <Input
+              id="invite-email"
+              type="email"
+              placeholder={t`Email`}
+              disabled={isFreePlan || !isEmailEnabled}
+              {...registerInvite("email", { required: true })}
+              errorMessage={inviteErrors.email?.message}
+            />
+            {!isEmailEnabled && (
+              <div className="flex items-start gap-2 rounded-md bg-light-100 p-3 text-xs text-light-900 dark:bg-dark-200 dark:text-dark-900">
+                <HiInformationCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  {t`Email delivery is disabled. Configure SMTP to send email invitations, or create the account directly.`}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {mode === "create" && isSelfHosted && (
+          <div className="space-y-3">
+            <Input
+              id="account-name"
+              placeholder={t`Display name`}
+              autoComplete="off"
+              {...registerAccount("name", { required: true })}
+              errorMessage={accountErrors.name?.message}
+            />
+            <Input
+              id="account-email"
+              type="email"
+              placeholder={t`Login email`}
+              autoComplete="off"
+              {...registerAccount("email", { required: true })}
+              errorMessage={accountErrors.email?.message}
+            />
+            <Input
+              id="account-password"
+              type="password"
+              placeholder={t`Initial password`}
+              autoComplete="new-password"
+              {...registerAccount("password", { required: true })}
+              errorMessage={accountErrors.password?.message}
+            />
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="account-role"
+                className="text-xs font-medium text-light-900 dark:text-dark-900"
+              >
+                {t`Role`}
+              </label>
+              <select
+                id="account-role"
+                className="block w-full rounded-md border-0 bg-white/5 py-1.5 text-sm text-light-900 shadow-sm ring-1 ring-inset ring-light-600 focus:ring-2 focus:ring-inset focus:ring-light-700 dark:text-dark-1000 dark:ring-dark-700 dark:focus:ring-dark-700 sm:leading-6"
+                {...registerAccount("role")}
+              >
+                <option value="member">{t`Member`}</option>
+                <option value="guest">{t`Guest`}</option>
+                <option value="admin">{t`Admin`}</option>
+              </select>
+            </div>
+            <div className="flex items-start gap-2 rounded-md bg-light-100 p-3 text-xs text-light-900 dark:bg-dark-200 dark:text-dark-900">
+              <HiInformationCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {t`The account can sign in immediately. Passwords must contain at least 8 characters.`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {mode === "invite" &&
+          !isFreePlan &&
           (!isEmailEnabled || (isShareInviteLinkEnabled && inviteLink)) && (
             <div className="my-4">
               <div className="relative">
@@ -335,7 +503,7 @@ export function InviteMemberForm({
       </div>
 
       <div className="mt-12 flex items-center justify-end space-x-4 border-t border-light-600 px-5 pb-5 pt-5 dark:border-dark-600">
-        {!isFreePlan && (
+        {mode === "invite" && !isFreePlan && (
           <Toggle
             label={
               isShareInviteLinkEnabled
@@ -347,20 +515,28 @@ export function InviteMemberForm({
           />
         )}
         <div>
-          {isFreePlan ? (
+          {mode === "invite" && isFreePlan ? (
             <Button
               type="button"
               href={`/upgrade/select-plan?plan=pro&workspacePublicId=${workspace.publicId}&returnUrl=${encodeURIComponent("/members")}`}
             >
               {t`Choose plan`}
             </Button>
-          ) : (
+          ) : mode === "invite" ? (
             <Button
               type="submit"
               disabled={inviteMember.isPending || !isEmailEnabled}
               isLoading={inviteMember.isPending}
             >
               {t`Invite member`}
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={createAccount.isPending}
+              isLoading={createAccount.isPending}
+            >
+              {t`Create account`}
             </Button>
           )}
         </div>

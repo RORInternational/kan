@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Button } from "@headlessui/react";
@@ -5,7 +6,7 @@ import { t } from "@lingui/core/macro";
 import { env } from "next-runtime-env";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { HiBolt } from "react-icons/hi2";
+import { HiBolt, HiOutlineInboxArrowDown } from "react-icons/hi2";
 import {
   TbLayoutSidebarLeftCollapse,
   TbLayoutSidebarLeftExpand,
@@ -90,9 +91,24 @@ export default function SideNavigation({
   const navigation: {
     name: string;
     href: string;
-    icon: object;
+    icon?: object;
+    iconComponent?: ReactNode;
     keyboardShortcut: KeyboardShortcut;
   }[] = [
+    {
+      name: t`Task Dump`,
+      href: "/task-dump",
+      iconComponent: <HiOutlineInboxArrowDown className="h-5 w-5" />,
+      keyboardShortcut: {
+        type: "SEQUENCE",
+        strokes: [{ key: "G" }, { key: "D" }],
+        action: () => {
+          void router.push("/task-dump");
+        },
+        group: "NAVIGATION",
+        description: t`Go to task dump`,
+      },
+    },
     {
       name: t`Boards`,
       href: "/boards",
@@ -100,7 +116,9 @@ export default function SideNavigation({
       keyboardShortcut: {
         type: "SEQUENCE",
         strokes: [{ key: "G" }, { key: "B" }],
-        action: () => router.push("/boards"),
+        action: () => {
+          void router.push("/boards");
+        },
         group: "NAVIGATION",
         description: t`Go to boards`,
       },
@@ -112,7 +130,9 @@ export default function SideNavigation({
       keyboardShortcut: {
         type: "SEQUENCE",
         strokes: [{ key: "G" }, { key: "T" }],
-        action: () => router.push("/templates"),
+        action: () => {
+          void router.push("/templates");
+        },
         group: "NAVIGATION",
         description: t`Go to templates`,
       },
@@ -124,7 +144,9 @@ export default function SideNavigation({
       keyboardShortcut: {
         type: "SEQUENCE",
         strokes: [{ key: "G" }, { key: "M" }],
-        action: () => router.push("/members"),
+        action: () => {
+          void router.push("/members");
+        },
         group: "NAVIGATION",
         description: t`Go to members`,
       },
@@ -136,7 +158,9 @@ export default function SideNavigation({
       keyboardShortcut: {
         type: "SEQUENCE",
         strokes: [{ key: "G" }, { key: "S" }],
-        action: () => router.push("/settings"),
+        action: () => {
+          void router.push("/settings");
+        },
         group: "NAVIGATION",
         description: t`Go to settings`,
       },
@@ -195,6 +219,7 @@ export default function SideNavigation({
                   current={pathname.includes(item.href)}
                   name={item.name}
                   json={item.icon}
+                  icon={item.iconComponent}
                   isCollapsed={isCollapsed}
                   onCloseSideNav={onCloseSideNav}
                   keyboardShortcut={item.keyboardShortcut}
