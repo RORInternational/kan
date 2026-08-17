@@ -8,14 +8,20 @@ import { api } from "~/utils/api";
 const POLL_MS = 10_000;
 /** How long a card stays highlighted after it appears or moves. */
 const FRESH_MS = 90_000;
+/**
+ * Cards shown per lane before collapsing the rest into a "+N more" row.
+ * Tuned for a 16:9 screen at the type sizes below — roughly what fits without
+ * the last card being clipped halfway. Raise it if lanes look sparse.
+ */
+const MAX_CARDS_PER_LANE = 5;
 
 const LANE_COLOURS = [
-  "#7DD3FC",
-  "#FCD34D",
-  "#C4B5FD",
-  "#6EE7A8",
-  "#F9A8D4",
-  "#FDBA74",
+  "#2563EB",
+  "#C2410C",
+  "#7C3AED",
+  "#0F766E",
+  "#BE185D",
+  "#A16207",
 ];
 
 const initials = (name: string) =>
@@ -29,7 +35,6 @@ const initials = (name: string) =>
 const formatDue = (due: Date) =>
   due.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 
-/** A card counts as done when its list is the board's last one. */
 const useClock = () => {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -56,7 +61,12 @@ export default function TvView() {
     ? router.query.boardId[0]
     : router.query.boardId;
 
-  const { data: board, dataUpdatedAt, isError, isPending } = api.board.byId.useQuery(
+  const {
+    data: board,
+    dataUpdatedAt,
+    isError,
+    isPending,
+  } = api.board.byId.useQuery(
     { boardPublicId: boardId ?? "" },
     {
       enabled: !!boardId,
@@ -109,7 +119,7 @@ export default function TvView() {
   if (isError) {
     return (
       <Shell>
-        <p className="text-[2vw] font-semibold text-red-300">
+        <p className="text-[2vw] font-semibold text-red-600">
           Can&rsquo;t load this board. Check the display account is signed in.
         </p>
       </Shell>
@@ -119,28 +129,28 @@ export default function TvView() {
   if (isPending || !board) {
     return (
       <Shell>
-        <p className="text-[2vw] font-semibold text-neutral-500">Loading board…</p>
+        <p className="text-[2vw] font-semibold text-light-900">Loading board…</p>
       </Shell>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0B0F10] text-[#EAF0EF]">
-      <header className="flex flex-none items-center justify-between border-b border-[#1E2626] px-[2.2vw] pb-[1.2vw] pt-[1.8vw]">
+    <div className="tv-root flex h-screen w-screen flex-col overflow-hidden bg-light-100 text-light-1000">
+      <header className="flex flex-none items-center justify-between border-b border-light-300 bg-light-50 px-[2.2vw] pb-[1.2vw] pt-[1.6vw]">
         <div className="flex items-baseline gap-[1.2vw]">
-          <h1 className="text-[3.4vw] font-extrabold leading-none tracking-[-0.04em] text-white">
+          <h1 className="text-[3.2vw] font-extrabold leading-none tracking-[-0.04em] text-light-1000">
             {board.name}
           </h1>
-          <span className="text-[1.15vw] font-semibold uppercase tracking-[0.22em] text-[#5C6B6A]">
+          <span className="text-[1.1vw] font-semibold uppercase tracking-[0.22em] text-light-900">
             {board.workspace.cardPrefix}
           </span>
         </div>
         <div className="flex items-center gap-[2vw]">
-          <span className="flex items-center gap-[0.6vw] text-[1.15vw] font-bold tracking-[0.14em] text-[#4ADE9B]">
-            <span className="tv-pulse h-[0.8vw] w-[0.8vw] rounded-full bg-[#4ADE9B]" />
+          <span className="flex items-center gap-[0.6vw] text-[1.1vw] font-bold tracking-[0.14em] text-emerald-700">
+            <span className="tv-pulse h-[0.75vw] w-[0.75vw] rounded-full bg-emerald-600" />
             LIVE
           </span>
-          <span className="text-[2vw] font-bold tabular-nums tracking-[-0.02em]">
+          <span className="text-[1.9vw] font-bold tabular-nums tracking-[-0.02em] text-light-1000">
             {clock
               ? clock.toLocaleTimeString("en-AU", {
                   hour: "2-digit",
@@ -153,96 +163,115 @@ export default function TvView() {
       </header>
 
       <div
-        className="grid min-h-0 flex-1 gap-[1.2vw] px-[2.2vw] py-[1.5vw]"
-        style={{ gridTemplateColumns: `repeat(${Math.max(lists.length, 1)}, minmax(0, 1fr))` }}
+        className="grid min-h-0 flex-1 gap-[1.3vw] px-[2.2vw] py-[1.6vw]"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(lists.length, 1)}, minmax(0, 1fr))`,
+        }}
       >
-        {lists.map((list, i) => (
-          <section key={list.publicId} className="flex min-h-0 flex-col">
-            <div className="mb-[1.2vw] flex flex-none items-center gap-[0.9vw] border-b-[0.4vw] border-[#1B2323] pb-[1vw]">
-              <span
-                className="flex h-[2.6vw] w-[2.6vw] flex-none items-center justify-center rounded-full text-[1.25vw] font-extrabold text-[#0B0F10]"
-                style={{ background: LANE_COLOURS[i % LANE_COLOURS.length] }}
-              >
-                {initials(list.name)}
-              </span>
-              <h2 className="text-[1.9vw] font-bold tracking-[-0.02em] text-white">
-                {list.name}
-              </h2>
-              <span className="ml-auto text-[1.45vw] font-bold tabular-nums text-[#5C6B6A]">
-                {list.cards.length}
-              </span>
-            </div>
+        {lists.map((list, i) => {
+          const accent = LANE_COLOURS[i % LANE_COLOURS.length] ?? "#2563EB";
+          return (
+            <section key={list.publicId} className="flex min-h-0 flex-col">
+              <div className="mb-[1.1vw] flex flex-none items-center gap-[0.9vw]">
+                <span
+                  className="flex h-[2.5vw] w-[2.5vw] flex-none items-center justify-center rounded-full text-[1.2vw] font-extrabold text-white"
+                  style={{ background: accent }}
+                >
+                  {initials(list.name)}
+                </span>
+                <h2 className="text-[1.85vw] font-bold tracking-[-0.02em] text-light-1000">
+                  {list.name}
+                </h2>
+                <span className="ml-auto rounded-full bg-light-300 px-[0.9vw] py-[0.15vw] text-[1.15vw] font-bold tabular-nums text-light-950">
+                  {list.cards.length}
+                </span>
+              </div>
+              <div
+                className="mb-[1.1vw] h-[0.35vw] flex-none rounded-full"
+                style={{ background: accent }}
+              />
 
-            <div className="flex min-h-0 flex-col gap-[0.9vw] overflow-hidden">
-              {list.cards.length === 0 && (
-                <p className="rounded-[0.7vw] border border-dashed border-[#223030] px-[1.5vw] py-[1.6vw] text-center text-[1.25vw] font-semibold text-[#3F4E4D]">
-                  Nothing here
-                </p>
-              )}
+              <div className="flex min-h-0 flex-col gap-[0.9vw] overflow-hidden">
+                {list.cards.length === 0 && (
+                  <p className="rounded-[0.7vw] border border-dashed border-light-500 px-[1.5vw] py-[1.6vw] text-center text-[1.2vw] font-semibold text-light-800">
+                    Nothing here
+                  </p>
+                )}
 
-              {list.cards.map((card) => {
-                const isDone = list.publicId === doneListId;
-                const mark = seen.current.get(card.publicId);
-                // at === 0 marks a card that was already there on first load.
-                const fresh = !!mark && mark.at > 0 && Date.now() - mark.at < FRESH_MS;
-                return (
-                  <article
-                    key={card.publicId}
-                    className="rounded-[0.7vw] bg-[#141B1B] px-[1.4vw] py-[1.3vw]"
-                    style={{
-                      borderLeft: `0.42vw solid ${
-                        fresh ? "#4ADE9B" : isDone ? "#2A3535" : "#F87171"
-                      }`,
-                      background: fresh ? "#15211D" : undefined,
-                    }}
-                  >
-                    {card.cardNumber !== null && (
-                      <p className="mb-[0.5vw] text-[1.05vw] font-bold tracking-[0.1em] text-[#546564]">
-                        {board.workspace.cardPrefix}-{card.cardNumber}
-                      </p>
-                    )}
-                    <h3 className="text-[1.65vw] font-semibold leading-[1.28] tracking-[-0.015em] text-[#F2F7F6]">
-                      {card.title}
-                    </h3>
-                    <div className="mt-[1vw] flex items-center gap-[1vw]">
-                      <span
-                        className="inline-flex items-center gap-[0.45vw] rounded-full px-[0.85vw] py-[0.35vw] text-[1.05vw] font-bold"
-                        style={
-                          isDone
-                            ? { background: "#152A20", color: "#6EE7A8" }
-                            : { background: "#2A1A1A", color: "#FCA5A5" }
-                        }
-                      >
+                {list.cards.slice(0, MAX_CARDS_PER_LANE).map((card) => {
+                  const isDone = list.publicId === doneListId;
+                  const mark = seen.current.get(card.publicId);
+                  // at === 0 marks a card that was already there on first load.
+                  const fresh =
+                    !!mark && mark.at > 0 && Date.now() - mark.at < FRESH_MS;
+                  return (
+                    <article
+                      key={card.publicId}
+                      className="rounded-[0.7vw] border border-light-300 bg-light-50 px-[1.4vw] py-[1.25vw] shadow-sm"
+                      style={
+                        fresh
+                          ? {
+                              borderColor: "#059669",
+                              boxShadow: "0 0 0 0.18vw rgba(5,150,105,0.18)",
+                              background: "#F0FDF6",
+                            }
+                          : undefined
+                      }
+                    >
+                      {card.cardNumber !== null && (
+                        <p className="mb-[0.45vw] text-[1vw] font-bold tracking-[0.1em] text-light-800">
+                          {board.workspace.cardPrefix}-{card.cardNumber}
+                        </p>
+                      )}
+                      <h3 className="text-[1.6vw] font-semibold leading-[1.3] tracking-[-0.015em] text-light-1000">
+                        {card.title}
+                      </h3>
+                      <div className="mt-[0.95vw] flex items-center gap-[1vw]">
                         <span
-                          className="h-[0.65vw] w-[0.65vw] rounded-full"
-                          style={{ background: isDone ? "#4ADE9B" : "#F87171" }}
-                        />
-                        {isDone ? "Done" : "Not done"}
-                      </span>
-                      {card.dueDate && (
-                        <span className="text-[1.1vw] font-semibold text-[#6B7A79]">
-                          {formatDue(new Date(card.dueDate))}
+                          className={`inline-flex items-center gap-[0.45vw] rounded-full px-[0.85vw] py-[0.3vw] text-[1vw] font-bold ${
+                            isDone
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          <span
+                            className={`h-[0.6vw] w-[0.6vw] rounded-full ${
+                              isDone ? "bg-emerald-600" : "bg-red-500"
+                            }`}
+                          />
+                          {isDone ? "Done" : "Not done"}
                         </span>
-                      )}
-                      {fresh && (
-                        <span className="ml-auto text-[0.9vw] font-extrabold uppercase tracking-[0.12em] text-[#4ADE9B]">
-                          just now
-                        </span>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+                        {card.dueDate && (
+                          <span className="text-[1.05vw] font-semibold text-light-900">
+                            {formatDue(new Date(card.dueDate))}
+                          </span>
+                        )}
+                        {fresh && (
+                          <span className="ml-auto text-[0.85vw] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
+                            just now
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+
+                {list.cards.length > MAX_CARDS_PER_LANE && (
+                  <p className="flex-none text-center text-[1.15vw] font-bold text-light-900">
+                    + {list.cards.length - MAX_CARDS_PER_LANE} more
+                  </p>
+                )}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
-      <footer className="flex flex-none items-center justify-between border-t border-[#1E2626] bg-[#0A0D0E] px-[2.2vw] py-[1vw] text-[1.1vw] font-semibold text-[#546564]">
+      <footer className="flex flex-none items-center justify-between border-t border-light-300 bg-light-50 px-[2.2vw] py-[0.9vw] text-[1.05vw] font-semibold text-light-950">
         <span>
           {totals.all} cards · {totals.open} not done · {totals.done} done
         </span>
-        <span className="text-[#7C8B8A]">
+        <span className="text-light-900">
           {ago === null
             ? "syncing…"
             : ago < 60
@@ -252,18 +281,29 @@ export default function TvView() {
       </footer>
 
       <style jsx global>{`
+        /* The wall display is a fixed light surface; the viewer's OS theme
+           should not flip it, since the room's screen is not personal. */
+        .tv-root {
+          color-scheme: light;
+          background-image: radial-gradient(
+            circle at 1px 1px,
+            hsl(0deg 0% 85%) 1px,
+            transparent 0
+          );
+          background-size: 22px 22px;
+        }
         .tv-pulse {
           animation: tvpulse 2.4s infinite;
         }
         @keyframes tvpulse {
           0% {
-            box-shadow: 0 0 0 0 rgba(74, 222, 155, 0.55);
+            box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.45);
           }
           70% {
-            box-shadow: 0 0 0 1.2vw rgba(74, 222, 155, 0);
+            box-shadow: 0 0 0 1.1vw rgba(5, 150, 105, 0);
           }
           100% {
-            box-shadow: 0 0 0 0 rgba(74, 222, 155, 0);
+            box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -278,7 +318,7 @@ export default function TvView() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[#0B0F10]">
+    <div className="flex h-screen w-screen items-center justify-center bg-light-100">
       {children}
     </div>
   );

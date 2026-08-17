@@ -12,6 +12,7 @@ import {
   HiOutlinePlusSmall,
   HiOutlineRectangleStack,
   HiOutlineSquare3Stack3D,
+  HiOutlineTv,
 } from "react-icons/hi2";
 
 import type { UpdateBoardInput } from "@kan/api/types";
@@ -604,6 +605,20 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
                     isLoading={!boardData}
                   />
                 )}
+                <Tooltip content={t`Open full-screen view for a wall display`}>
+                  <Button
+                    variant="secondary"
+                    iconLeft={
+                      <HiOutlineTv className="h-5 w-5" aria-hidden="true" />
+                    }
+                    onClick={() => {
+                      if (boardId) window.open(`/tv/${boardId}`, "_blank");
+                    }}
+                    disabled={!boardData}
+                  >
+                    {t`Showcase`}
+                  </Button>
+                </Tooltip>
               </>
             )}
             <Tooltip
