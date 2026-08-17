@@ -10,6 +10,7 @@ configureRuntimeEnv();
 
 /** @type {import("next").NextConfig} */
 const config = {
+  allowedDevOrigins: ["dnd-ms-2s-mac-studio.tail6f8395.ts.net"],
   output:
     env("NEXT_PUBLIC_USE_STANDALONE_OUTPUT") === "true"
       ? "standalone"

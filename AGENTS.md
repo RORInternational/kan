@@ -25,9 +25,12 @@ Kan is an open-source project management tool (Trello alternative) built with:
 ## Development Environment
 
 - Run `pnpm dev` from the repository root; Turbo starts the workspace services.
-- The Next.js web app has fixed port `3000` and binds to `0.0.0.0`.
-- Local web URL: `http://localhost:3000`.
-- Tailscale web URL: `http://dnd-ms-2s-mac-studio.tail6f8395.ts.net:3000`.
+- The Next.js web app has fixed port `3333` and binds to `127.0.0.1`. Port `3000` is unavailable on this machine — another user's dev server holds it.
+- Local web URL: `http://localhost:3333`.
+- Tailscale web URL: `https://dnd-ms-2s-mac-studio.tail6f8395.ts.net:3333`, exposed with `tailscale serve --bg --https=3333 http://127.0.0.1:3333`.
+- Set `NEXT_PUBLIC_BASE_URL=https://dnd-ms-2s-mac-studio.tail6f8395.ts.net:3333` in the root `.env` so authentication and root-page redirects stay on the HTTPS Tailscale hostname.
+- Do **not** bind the web app to `0.0.0.0:3333`. Tailscale's serve proxy already listens on `100.114.30.32:3333`, and a wildcard bind on the same port fails with `EADDRINUSE` on macOS. Loopback plus the serve proxy is what makes the Tailscale URL work.
+- Start the complete development environment with `pnpm dev`; if the HTTPS proxy is missing, restore it with `tailscale serve --bg --https=3333 http://127.0.0.1:3333`. Verify it with `tailscale serve status`.
 - Mintlify docs use port `3001`; do not assign that port to the web app.
 - Do not replace the fixed web port with an ad-hoc `next dev` command. If the Tailscale hostname changes, verify it with `tailscale status --json`.
 
