@@ -81,10 +81,20 @@ export function registerLabelTools(server: McpServer): void {
     },
     async ({ labelPublicId, name, colour, colourCode }) => {
       const resolved = resolveColourCode(colour, colourCode);
-      const body: Record<string, unknown> = {};
-      if (name !== undefined) body.name = name;
-      if (resolved !== undefined) body.colourCode = resolved;
-      const data = await kanRequest("PUT", `/labels/${labelPublicId}`, body);
+
+      // The API requires both name and colourCode on every update, so read the
+      // current label and fill in whichever field the caller left alone —
+      // otherwise renaming a label would blank its colour (or just fail).
+      const current = await kanRequest<{ name?: string; colourCode?: string }>(
+        "GET",
+        `/labels/${labelPublicId}`,
+      );
+
+      const data = await kanRequest("PUT", `/labels/${labelPublicId}`, {
+        labelPublicId,
+        name: name ?? current.name,
+        colourCode: resolved ?? current.colourCode,
+      });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },
   );

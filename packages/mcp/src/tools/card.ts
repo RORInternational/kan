@@ -84,14 +84,36 @@ export function registerCardTools(server: McpServer): void {
     "Duplicate a card to the same or a different list",
     {
       cardPublicId: z.string().describe("The card's public ID to duplicate"),
-      targetListPublicId: z
+      listPublicId: z
         .string()
+        .describe("Public ID of the list to copy the card into (required)"),
+      title: z.string().optional().describe("Title for the copy (defaults to the original)"),
+      index: z.number().int().min(0).optional().describe("Position within the target list"),
+      copyLabels: z.boolean().optional().describe("Copy the card's labels (default: true)"),
+      copyMembers: z.boolean().optional().describe("Copy the card's members (default: true)"),
+      copyChecklists: z
+        .boolean()
         .optional()
-        .describe("Target list public ID (defaults to same list)"),
+        .describe("Copy the card's checklists (default: true)"),
     },
-    async ({ cardPublicId, targetListPublicId }) => {
+    async ({
+      cardPublicId,
+      listPublicId,
+      title,
+      index,
+      copyLabels,
+      copyMembers,
+      copyChecklists,
+    }) => {
       const data = await kanRequest("POST", `/cards/${cardPublicId}/duplicate`, {
-        targetListPublicId,
+        cardPublicId,
+        listPublicId,
+        title,
+        index,
+        // All three are required by the API, so default rather than omit.
+        copyLabels: copyLabels ?? true,
+        copyMembers: copyMembers ?? true,
+        copyChecklists: copyChecklists ?? true,
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },

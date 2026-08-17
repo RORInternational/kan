@@ -88,21 +88,38 @@ export function registerBoardTools(server: McpServer): void {
 
   server.tool(
     "create_board",
-    "Create a new board in a workspace",
+    "Create a new board in a workspace. Pass the list names you want the board to start with — a board with no lists cannot hold any cards.",
     {
       workspacePublicId: z.string().describe("The workspace's public ID"),
       name: z.string().describe("Board name"),
-      slug: z.string().optional().describe("URL-friendly slug (auto-generated if omitted)"),
-      visibility: z
-        .enum(["public", "private"])
+      lists: z
+        .array(z.string())
         .optional()
-        .describe("Board visibility (default: private)"),
+        .describe(
+          "Names of the lists to create, in order (e.g. ['To Do', 'In Progress', 'Done'])",
+        ),
+      labels: z
+        .array(z.string())
+        .optional()
+        .describe("Names of the labels to create"),
+      type: z
+        .enum(["regular", "template"])
+        .optional()
+        .describe("Board type (default: regular)"),
+      sourceBoardPublicId: z
+        .string()
+        .optional()
+        .describe("Public ID of a board or template to copy lists and labels from"),
     },
-    async ({ workspacePublicId, name, slug, visibility }) => {
+    async ({ workspacePublicId, name, lists, labels, type, sourceBoardPublicId }) => {
       const data = await kanRequest("POST", `/workspaces/${workspacePublicId}/boards`, {
         name,
-        slug,
-        visibility,
+        workspacePublicId,
+        // Both are required by the API, so send arrays rather than undefined.
+        lists: lists ?? [],
+        labels: labels ?? [],
+        type: type ?? "regular",
+        sourceBoardPublicId,
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },
@@ -116,14 +133,16 @@ export function registerBoardTools(server: McpServer): void {
       name: z.string().optional().describe("New board name"),
       slug: z.string().optional().describe("New board slug"),
       visibility: z.enum(["public", "private"]).optional().describe("New visibility"),
-      isFavorite: z.boolean().optional().describe("Whether the board is favorited"),
+      favorite: z.boolean().optional().describe("Whether the board is favorited"),
     },
-    async ({ boardPublicId, name, slug, visibility, isFavorite }) => {
+    async ({ boardPublicId, name, slug, visibility, favorite }) => {
       const data = await kanRequest("PUT", `/boards/${boardPublicId}`, {
+        boardPublicId,
         name,
         slug,
         visibility,
-        isFavorite,
+        // The API field is `favorite`; `isFavorite` was silently dropped.
+        favorite,
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },

@@ -5,20 +5,18 @@ import { kanRequest } from "../client.js";
 export function registerMemberTools(server: McpServer): void {
   server.tool(
     "invite_member",
-    "Invite a user to a workspace by email",
+    "Invite a user to a workspace by email. Invitees join as members; use update_member_role afterwards to give them a different role.",
     {
       workspacePublicId: z.string().describe("The workspace's public ID"),
       email: z.string().email().describe("Email address to invite"),
-      role: z
-        .enum(["admin", "member", "guest"])
-        .optional()
-        .describe("Role to assign (default: member)"),
     },
-    async ({ workspacePublicId, email, role }) => {
+    async ({ workspacePublicId, email }) => {
+      // The invite endpoint takes no role — it was accepted here and silently
+      // dropped, so invitees never got the requested role.
       const data = await kanRequest(
         "POST",
         `/workspaces/${workspacePublicId}/members/invite`,
-        { email, role },
+        { email, workspacePublicId },
       );
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },
