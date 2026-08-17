@@ -1,11 +1,26 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 export interface KanConfig {
   baseUrl: string;
   apiToken: string;
 }
 
+/**
+ * Carries the caller's credentials for the duration of one request.
+ *
+ * Over stdio the server is a private subprocess, so a process-wide env var is
+ * safe. Over HTTP one server handles many people at once, and a process-wide
+ * token would silently attribute everyone's writes to a single user. The HTTP
+ * entry point runs each request inside `kanContext.run(...)` so every tool call
+ * resolves the credentials of whoever made it.
+ */
+export const kanContext = new AsyncLocalStorage<KanConfig>();
+
 function getConfig(): KanConfig {
-  const baseUrl = process.env["KAN_BASE_URL"];
-  const apiToken = process.env["KAN_API_TOKEN"];
+  const store = kanContext.getStore();
+
+  const baseUrl = store?.baseUrl ?? process.env["KAN_BASE_URL"];
+  const apiToken = store?.apiToken ?? process.env["KAN_API_TOKEN"];
 
   if (!baseUrl) {
     throw new Error("KAN_BASE_URL environment variable is required");

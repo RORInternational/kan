@@ -69,6 +69,7 @@
   "globalEnv": [
     "KAN_ADMIN_API_KEY",
     "POSTGRES_URL",
+    "POSTGRES_POOL_MAX",
     "TRELLO_APP_API_KEY",
     "TRELLO_APP_SECRET",
     "GOOGLE_CLIENT_ID",
