@@ -70,7 +70,10 @@ export default function TvView() {
   const boardId = Array.isArray(router.query.boardId)
     ? router.query.boardId[0]
     : router.query.boardId;
-  const isMatrix = router.query.view === "matrix";
+  // Matrix is what the wall shows. ?view=lanes stays as an escape hatch for a
+  // board whose lists are people rather than stages, which has no matrix to
+  // draw — it is not offered in the UI.
+  const isMatrix = router.query.view !== "lanes";
 
   const {
     data: board,
