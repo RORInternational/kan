@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { kanRequest } from "../client.js";
+import { listWorkspaces, matchByName } from "../workspaces.js";
 
 export function registerBoardTools(server: McpServer): void {
   server.tool(
@@ -21,10 +22,8 @@ export function registerBoardTools(server: McpServer): void {
       boardName: z.string().describe("The board name (e.g. 'Mechanics Rework')"),
     },
     async ({ workspaceName, boardName }) => {
-      const workspaces = await kanRequest<{ publicId: string; name: string }[]>("GET", "/workspaces");
-      const workspace = workspaces.find(
-        (w) => w.name.toLowerCase() === workspaceName.toLowerCase(),
-      );
+      const workspaces = await listWorkspaces();
+      const workspace = matchByName(workspaces, workspaceName);
       if (!workspace) {
         const names = workspaces.map((w) => w.name).join(", ");
         return {
@@ -40,9 +39,7 @@ export function registerBoardTools(server: McpServer): void {
         "GET",
         `/workspaces/${workspace.publicId}/boards`,
       );
-      const board = boards.find(
-        (b) => b.name.toLowerCase() === boardName.toLowerCase(),
-      );
+      const board = matchByName(boards, boardName);
       if (!board) {
         const names = boards.map((b) => b.name).join(", ");
         return {

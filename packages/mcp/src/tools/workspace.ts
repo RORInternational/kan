@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { kanRequest } from "../client.js";
+import { listWorkspaces, matchByName } from "../workspaces.js";
 
 export function registerWorkspaceTools(server: McpServer): void {
   server.tool(
@@ -18,10 +19,8 @@ export function registerWorkspaceTools(server: McpServer): void {
     "Find a workspace by its name (case-insensitive). Returns the matching workspace including its publicId. Use this whenever you only know the workspace name and need its publicId.",
     { name: z.string().describe("Workspace name to search for") },
     async ({ name }) => {
-      const workspaces = await kanRequest<{ publicId: string; name: string }[]>("GET", "/workspaces");
-      const match = workspaces.find(
-        (w) => w.name.toLowerCase() === name.toLowerCase(),
-      );
+      const workspaces = await listWorkspaces();
+      const match = matchByName(workspaces, name);
       if (!match) {
         const names = workspaces.map((w) => w.name).join(", ");
         return {
