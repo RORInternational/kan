@@ -112,4 +112,4 @@ export const userBoardFavorites = pgTable(
     userIdx: index("user_board_favorite_user_idx").on(table.userId),
     boardIdx: index("user_board_favorite_board_idx").on(table.boardId),
   }),
-);
+).enableRLS();
