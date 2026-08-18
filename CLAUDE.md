@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This file covers what AGENTS.md omits: commands (especially tests), the cross-cutting architecture, and a few places where AGENTS.md has drifted from the code.
 
+`TASK-AGENT.md` is a third, unrelated document: the conventions an agent needs to drive our own live board over MCP (labels are outcomes, every card needs an assignee, and so on). It is not about this codebase and is not read by Claude Code here — it gets copied into whatever project a teammate points Codex at.
+
 ### Known drift in AGENTS.md
 
 - It says to check workspace access with `assertUserInWorkspace`. The codebase has largely moved to the permission system: `assertPermission` (72 call sites) vs `assertUserInWorkspace` (3). Use `assertPermission(db, userId, workspaceId, "resource:action")` from `packages/api/src/utils/permissions.ts` for new procedures; `assertCanManageRole` additionally guards role escalation.
