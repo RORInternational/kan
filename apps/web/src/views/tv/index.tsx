@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { RouterOutputs } from "~/utils/api";
 import { api } from "~/utils/api";
+import { buildMatrix, initials, isBlocked } from "~/utils/matrix";
 
 /** How often to pull fresh board data. */
 const POLL_MS = 10_000;
@@ -16,15 +17,6 @@ const FRESH_MS = 90_000;
  */
 const MAX_CARDS_PER_LANE = 5;
 const MAX_CARDS_PER_CELL = 3;
-/**
- * A label with this name is a flag, not an outcome row. Matched loosely on
- * purpose: someone typing "blocked" by hand should not silently gain a fourth
- * row on the wall and lose the blocked marker at the same time.
- */
-const BLOCKED_LABEL = "blocked";
-const isBlockedLabel = (name: string) =>
-  name.trim().toLowerCase() === BLOCKED_LABEL;
-
 type Board = NonNullable<RouterOutputs["board"]["byId"]>;
 type Card = Board["lists"][number]["cards"][number];
 
@@ -37,19 +29,28 @@ const LANE_COLOURS = [
   "#A16207",
 ];
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-
 const formatDue = (due: Date) =>
   due.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 
-const isBlocked = (card: Card) =>
-  card.labels.some((l) => isBlockedLabel(l.name));
+/**
+ * The page already fills the window, but a browser still shows its own chrome.
+ * Kiosk mode handles the wall machine; this is for anyone opening Showcase from
+ * their desk. The control fades out so it does not sit on the wall all day.
+ */
+const useFullscreen = () => {
+  const [isFull, setIsFull] = useState(false);
+  useEffect(() => {
+    const sync = () => setIsFull(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    sync();
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  const toggle = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen().catch(() => undefined);
+  };
+  return { isFull, toggle };
+};
 
 const useClock = () => {
   const [now, setNow] = useState<Date | null>(null);
@@ -100,6 +101,7 @@ export default function TvView() {
 
   const clock = useClock();
   const ago = useAgo(dataUpdatedAt || null);
+  const { isFull, toggle: toggleFullscreen } = useFullscreen();
 
   // Remember when each card was first seen in its current list, so a new or
   // moved card can be highlighted briefly.
@@ -194,11 +196,7 @@ export default function TvView() {
       </header>
 
       {isMatrix ? (
-        <MatrixLayout
-          board={board}
-          doneListId={doneListId}
-          freshFor={freshFor}
-        />
+        <MatrixLayout board={board} freshFor={freshFor} />
       ) : (
         <LaneLayout board={board} doneListId={doneListId} freshFor={freshFor} />
       )}
@@ -210,12 +208,21 @@ export default function TvView() {
           <Key colour="#1FAE6B" label="Done" />
           <Key colour="#DC2626" label="Blocked" />
         </div>
-        <span className="text-light-900">
-          {ago === null
-            ? "syncing…"
-            : ago < 60
-              ? `updated ${ago}s ago`
-              : `updated ${Math.floor(ago / 60)}m ago`}
+        <span className="flex items-center gap-[1.2vw]">
+          <span className="text-light-900">
+            {ago === null
+              ? "syncing…"
+              : ago < 60
+                ? `updated ${ago}s ago`
+                : `updated ${Math.floor(ago / 60)}m ago`}
+          </span>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="tv-fs rounded border border-light-400 bg-light-100 px-[0.8vw] py-[0.25vw] text-[0.95vw] font-bold text-light-950 hover:bg-light-200"
+          >
+            {isFull ? "Exit full screen" : "Full screen"}
+          </button>
         </span>
       </footer>
 
@@ -230,6 +237,17 @@ export default function TvView() {
             transparent 0
           );
           background-size: 22px 22px;
+        }
+        /* On the wall nobody clicks this, so let it fade once fullscreen. */
+        .tv-fs {
+          opacity: 1;
+          transition: opacity 0.4s;
+        }
+        :fullscreen .tv-fs {
+          opacity: 0;
+        }
+        :fullscreen:hover .tv-fs {
+          opacity: 1;
         }
         .tv-pulse {
           animation: tvpulse 2.4s infinite;
@@ -261,59 +279,15 @@ export default function TvView() {
 
 function MatrixLayout({
   board,
-  doneListId,
   freshFor,
 }: {
   board: Board;
-  doneListId: string | undefined;
   freshFor: (publicId: string) => boolean;
 }) {
-  const { outcomes, people, cellOf, progressOf, hidden } = useMemo(() => {
-    const withStage = board.lists.flatMap((list) =>
-      list.cards.map((card) => ({
-        card,
-        stage: list.name,
-        isDone: list.publicId === doneListId,
-      })),
-    );
-
-    const outcomes = board.labels.filter((l) => !isBlockedLabel(l.name));
-
-    // Only show people who actually have cards here — listing every workspace
-    // member would fill the screen with empty columns.
-    const assigned = new Set(
-      withStage.flatMap(({ card }) => card.members.map((m) => m.publicId)),
-    );
-    const people = board.workspace.members.filter(
-      (m) => m.user && assigned.has(m.publicId),
-    );
-
-    const cellOf = (labelPublicId: string, memberPublicId: string) =>
-      withStage.filter(
-        ({ card }) =>
-          card.labels.some((l) => l.publicId === labelPublicId) &&
-          card.members.some((m) => m.publicId === memberPublicId),
-      );
-
-    const progressOf = (labelPublicId: string) => {
-      const rows = withStage.filter(({ card }) =>
-        card.labels.some((l) => l.publicId === labelPublicId),
-      );
-      const done = rows.filter((r) => r.isDone).length;
-      return { done, total: rows.length };
-    };
-
-    // A card with no outcome label, or nobody assigned, lands in no cell.
-    // Say so rather than letting it vanish.
-    const outcomeIds = new Set(outcomes.map((o) => o.publicId));
-    const hidden = withStage.filter(
-      ({ card }) =>
-        !card.labels.some((l) => outcomeIds.has(l.publicId)) ||
-        card.members.length === 0,
-    ).length;
-
-    return { outcomes, people, cellOf, progressOf, hidden };
-  }, [board, doneListId]);
+  const { outcomes, people, cellOf, progressOf, hidden } = useMemo(
+    () => buildMatrix(board),
+    [board],
+  );
 
   if (!outcomes.length || !people.length) {
     return (
