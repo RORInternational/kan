@@ -12,7 +12,9 @@ import {
   HiOutlinePlusSmall,
   HiOutlineRectangleStack,
   HiOutlineSquare3Stack3D,
+  HiOutlineTableCells,
   HiOutlineTv,
+  HiOutlineViewColumns,
 } from "react-icons/hi2";
 
 import type { UpdateBoardInput } from "@kan/api/types";
@@ -51,6 +53,7 @@ import { MoveBoardForm } from "./components/MoveBoardForm";
 import { DeleteListConfirmation } from "./components/DeleteListConfirmation";
 import Filters from "./components/Filters";
 import List from "./components/List";
+import MatrixView from "./components/MatrixView";
 import { NewCardForm } from "./components/NewCardForm";
 import { NewListForm } from "./components/NewListForm";
 import { NewTemplateForm } from "./components/NewTemplateForm";
@@ -125,6 +128,16 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
     | "next-month"
     | "no-due-date"
   )[];
+
+  // View mode lives in the URL so a refresh keeps it, the link is shareable,
+  // and browser back/forward behave.
+  const isMatrixView = router.query.view === "matrix";
+  const setMatrixView = (on: boolean) => {
+    const query = { ...router.query };
+    if (on) query.view = "matrix";
+    else delete query.view;
+    void router.replace({ query }, undefined, { shallow: true });
+  };
 
   const boardType: "regular" | "template" = isTemplate ? "template" : "regular";
 
@@ -605,6 +618,34 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
                     isLoading={!boardData}
                   />
                 )}
+                <div className="inline-flex overflow-hidden rounded-md border border-light-300 dark:border-dark-300">
+                  <button
+                    type="button"
+                    aria-pressed={!isMatrixView}
+                    onClick={() => setMatrixView(false)}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold transition-colors ${
+                      !isMatrixView
+                        ? "bg-light-1000 text-light-50 dark:bg-dark-1000 dark:text-dark-50"
+                        : "bg-light-50 text-light-950 hover:bg-light-100 dark:bg-dark-50 dark:text-dark-950 dark:hover:bg-dark-100"
+                    }`}
+                  >
+                    <HiOutlineViewColumns className="h-4 w-4" aria-hidden="true" />
+                    {t`Board`}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={isMatrixView}
+                    onClick={() => setMatrixView(true)}
+                    className={`flex items-center gap-1.5 border-l border-light-300 px-3 py-2 text-sm font-semibold transition-colors dark:border-dark-300 ${
+                      isMatrixView
+                        ? "bg-light-1000 text-light-50 dark:bg-dark-1000 dark:text-dark-50"
+                        : "bg-light-50 text-light-950 hover:bg-light-100 dark:bg-dark-50 dark:text-dark-950 dark:hover:bg-dark-100"
+                    }`}
+                  >
+                    <HiOutlineTableCells className="h-4 w-4" aria-hidden="true" />
+                    {t`Matrix`}
+                  </button>
+                </div>
                 <Tooltip content={t`Open full-screen view for a wall display`}>
                   <Button
                     variant="secondary"
@@ -656,8 +697,14 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
 
         <div
           ref={scrollRef}
-          onMouseDown={onMouseDown}
-          className={`scrollbar-w-none scrollbar-track-rounded-[4px] scrollbar-thumb-rounded-[4px] scrollbar-h-[8px] z-0 flex-1 snap-x snap-mandatory scroll-pl-[10px] overflow-y-hidden overflow-x-scroll overscroll-contain scrollbar scrollbar-track-light-200 scrollbar-thumb-light-400 dark:scrollbar-track-dark-100 dark:scrollbar-thumb-dark-300 md:snap-none`}
+          // The lane view scrolls horizontally and supports drag-to-scroll. The
+          // matrix is a grid that scrolls both ways and would fight both.
+          onMouseDown={isMatrixView ? undefined : onMouseDown}
+          className={
+            isMatrixView
+              ? "z-0 flex-1 overflow-auto overscroll-contain"
+              : `scrollbar-w-none scrollbar-track-rounded-[4px] scrollbar-thumb-rounded-[4px] scrollbar-h-[8px] z-0 flex-1 snap-x snap-mandatory scroll-pl-[10px] overflow-y-hidden overflow-x-scroll overscroll-contain scrollbar scrollbar-track-light-200 scrollbar-thumb-light-400 dark:scrollbar-track-dark-100 dark:scrollbar-thumb-dark-300 md:snap-none`
+          }
         >
           {isLoading ? (
             <div className="ml-[2rem] flex">
@@ -667,7 +714,14 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
             </div>
           ) : boardData ? (
             <>
-              {boardData.lists.length === 0 ? (
+              {isMatrixView ? (
+                <MatrixView
+                  board={boardData}
+                  onOpenCard={(cardPublicId) =>
+                    void router.push(`/cards/${cardPublicId}`)
+                  }
+                />
+              ) : boardData.lists.length === 0 ? (
                 <div className="z-10 flex h-full w-full flex-col items-center justify-center space-y-8 pb-[150px]">
                   <div className="flex flex-col items-center">
                     <HiOutlineSquare3Stack3D className="h-10 w-10 text-light-800 dark:text-dark-800" />
