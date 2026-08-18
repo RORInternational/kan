@@ -1,5 +1,5 @@
 import { stripe } from "@better-auth/stripe";
-import { apiKey, genericOAuth } from "better-auth/plugins";
+import { apiKey, genericOAuth, mcp, oidcProvider } from "better-auth/plugins";
 import { magicLink } from "better-auth/plugins/magic-link";
 
 import type { dbClient } from "@kan/db/client";
@@ -191,6 +191,22 @@ export function createPlugins(db: dbClient) {
         maxRequests: 100, // 100 requests per minute
       },
     }),
+    /**
+     * OAuth for MCP clients that cannot hold a static API key. ChatGPT is the
+     * reason this exists: it only ever presents an OAuth access token, never a
+     * key you paste in. Codex keeps using the apiKey plugin above — the two
+     * live side by side, and both end up resolving to the same user.
+     *
+     * Dynamic client registration is on because ChatGPT registers itself; there
+     * is no client id for anyone to create by hand.
+     */
+    oidcProvider({
+      loginPage: "/login",
+      consentPage: "/oauth/consent",
+      allowDynamicClientRegistration: true,
+      requirePKCE: true,
+    }),
+    mcp({ loginPage: "/login" }),
     magicLink({
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       sendMagicLink: async ({ email, url }) => {

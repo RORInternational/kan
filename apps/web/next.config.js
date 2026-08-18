@@ -91,6 +91,19 @@ const config = {
         source: "/__ENV.js",
         destination: "/api/public-env",
       },
+      {
+        /**
+         * OAuth clients look for these at the domain root. Without the rewrite
+         * they fall through to [workspaceSlug] and the client is handed HTML,
+         * which reads to it as "this server advertises nothing".
+         */
+        source: "/.well-known/oauth-authorization-server",
+        destination: "/api/well-known/oauth-authorization-server",
+      },
+      {
+        source: "/.well-known/oauth-protected-resource",
+        destination: "/api/well-known/oauth-protected-resource",
+      },
     ];
   },
 };

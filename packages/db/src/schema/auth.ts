@@ -84,3 +84,55 @@ export const apiKeyRelations = relations(apikey, ({ one }) => ({
     relationName: "apiKeyUser",
   }),
 }));
+
+/**
+ * OAuth 2.1 tables for the Better Auth oidc-provider plugin, which lets MCP
+ * clients that cannot hold a static API key — ChatGPT above all — authenticate
+ * as a user. Column names follow the plugin's own field names exactly; it
+ * queries by these, so renaming any of them breaks the flow at runtime rather
+ * than at build.
+ */
+export const oauthApplication = pgTable("oauthApplication", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  name: text("name").notNull(),
+  icon: text("icon"),
+  metadata: text("metadata"),
+  // Clients register themselves, so this is issued rather than chosen.
+  clientId: text("clientId").notNull().unique(),
+  clientSecret: text("clientSecret"),
+  redirectUrls: text("redirectUrls").notNull(),
+  type: text("type").notNull(),
+  disabled: boolean("disabled").default(false),
+  userId: uuid("userId").references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+}).enableRLS();
+
+export const oauthAccessToken = pgTable("oauthAccessToken", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  accessToken: text("accessToken").notNull().unique(),
+  refreshToken: text("refreshToken").notNull().unique(),
+  accessTokenExpiresAt: timestamp("accessTokenExpiresAt").notNull(),
+  refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt").notNull(),
+  clientId: text("clientId")
+    .notNull()
+    .references(() => oauthApplication.clientId, { onDelete: "cascade" }),
+  userId: uuid("userId").references(() => users.id, { onDelete: "cascade" }),
+  scopes: text("scopes").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+}).enableRLS();
+
+export const oauthConsent = pgTable("oauthConsent", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  clientId: text("clientId")
+    .notNull()
+    .references(() => oauthApplication.clientId, { onDelete: "cascade" }),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  scopes: text("scopes").notNull(),
+  consentGiven: boolean("consentGiven").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+}).enableRLS();

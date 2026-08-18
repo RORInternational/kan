@@ -253,6 +253,13 @@
       "when": 1787019662710,
       "tag": "20260818022102_EnableRlsOnRemainingTables",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1787028069819,
+      "tag": "20260818044109_AddOAuthProviderTables",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import {
   apiKeyClient,
   genericOAuthClient,
   magicLinkClient,
+  oidcClient,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
@@ -34,6 +35,8 @@ export const authClient = createAuthClient({
     magicLinkClient(),
     apiKeyClient(),
     genericOAuthClient(),
+    // Lets the consent page call oauth2.consent on the user's behalf.
+    oidcClient(),
     socialProvidersPluginClient,
   ],
 });

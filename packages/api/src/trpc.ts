@@ -7,9 +7,12 @@ import { env } from "next-runtime-env";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
+import { eq } from "drizzle-orm";
+
 import type { dbClient } from "@kan/db/client";
 import { initAuth } from "@kan/auth/server";
 import { createDrizzleClient } from "@kan/db/client";
+import { users } from "@kan/db/schema";
 import { createLogger } from "@kan/logger";
 
 const log = createLogger("api");
@@ -133,14 +136,48 @@ export const createRESTContext = async ({ req }: CreateNextContextOptions) => {
 
   let session;
   try {
+    // Covers cookies and API keys: the apiKey plugin's customAPIKeyGetter reads
+    // the bearer header, so Codex and the REST API resolve here.
     session = await auth.api.getSession();
   } catch (error) {
     log.warn({ err: error }, "Failed to get session, treating as unauthenticated");
   }
 
+  // Clients that cannot hold a static key present an OAuth access token
+  // instead — ChatGPT is why this exists. Same bearer header, different token.
+  // getMcpSession returns the access-token row rather than a session, so the
+  // user has to be loaded separately to match the shape everything downstream
+  // expects; from there nothing cares which of the two got us here.
+  let oauthUser: User | undefined;
+  if (!session) {
+    try {
+      const token = await baseAuth.api.getMcpSession({ headers });
+      if (token?.userId) {
+        const row = await db.query.users.findFirst({
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            emailVerified: true,
+            createdAt: true,
+            updatedAt: true,
+            image: true,
+            stripeCustomerId: true,
+          },
+          where: eq(users.id, token.userId),
+        });
+        // name is nullable in the table but not in User, and the session path
+        // fills it the same way.
+        if (row) oauthUser = { ...row, name: row.name ?? "" };
+      }
+    } catch (error) {
+      log.warn({ err: error }, "Failed to resolve MCP OAuth session");
+    }
+  }
+
   return createInnerTRPCContext({
     db,
-    user: session?.user,
+    user: session?.user ?? oauthUser,
     auth,
     headers,
     transport: "rest",
