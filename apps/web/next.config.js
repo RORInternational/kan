@@ -80,6 +80,17 @@ const config = {
         source: "/settings",
         destination: "/settings/account",
       },
+      {
+        /**
+         * next-runtime-env writes public/__ENV.js when this config loads, but
+         * that file does not reach the Vercel deployment, so the request fell
+         * through to the [workspaceSlug] catch-all and the browser executed
+         * HTML as JavaScript. Serving it from a route removes the dependency on
+         * build-time file placement entirely.
+         */
+        source: "/__ENV.js",
+        destination: "/api/public-env",
+      },
     ];
   },
 };
