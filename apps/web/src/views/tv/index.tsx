@@ -16,8 +16,14 @@ const FRESH_MS = 90_000;
  */
 const MAX_CARDS_PER_LANE = 5;
 const MAX_CARDS_PER_CELL = 3;
-/** A label with this name is a flag, not an outcome row. */
-const BLOCKED_LABEL = "Blocked";
+/**
+ * A label with this name is a flag, not an outcome row. Matched loosely on
+ * purpose: someone typing "blocked" by hand should not silently gain a fourth
+ * row on the wall and lose the blocked marker at the same time.
+ */
+const BLOCKED_LABEL = "blocked";
+const isBlockedLabel = (name: string) =>
+  name.trim().toLowerCase() === BLOCKED_LABEL;
 
 type Board = NonNullable<RouterOutputs["board"]["byId"]>;
 type Card = Board["lists"][number]["cards"][number];
@@ -43,7 +49,7 @@ const formatDue = (due: Date) =>
   due.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 
 const isBlocked = (card: Card) =>
-  card.labels.some((l) => l.name === BLOCKED_LABEL);
+  card.labels.some((l) => isBlockedLabel(l.name));
 
 const useClock = () => {
   const [now, setNow] = useState<Date | null>(null);
@@ -271,7 +277,7 @@ function MatrixLayout({
       })),
     );
 
-    const outcomes = board.labels.filter((l) => l.name !== BLOCKED_LABEL);
+    const outcomes = board.labels.filter((l) => !isBlockedLabel(l.name));
 
     // Only show people who actually have cards here — listing every workspace
     // member would fill the screen with empty columns.
