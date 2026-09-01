@@ -374,9 +374,35 @@ export default function TvView() {
         .tv-gauge {
           transition: width 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
         }
+        /*
+         * Slow on purpose. A crest crossing the cell in seven seconds reads as
+         * water; the same shape in one second reads as a loading spinner, and a
+         * screen that looks like it is loading all day teaches people to ignore
+         * it. Only transform is animated, so these frames never touch layout.
+         */
+        .tv-wave {
+          will-change: transform;
+        }
+        .tv-wave-a {
+          animation: tvwave 7s linear infinite;
+        }
+        .tv-wave-b {
+          animation: tvwave 11s linear infinite reverse;
+        }
+        @keyframes tvwave {
+          from {
+            transform: translateY(0);
+          }
+          to {
+            transform: translateY(-25%);
+          }
+        }
         @media (prefers-reduced-motion: reduce) {
           .tv-gauge {
             transition: none;
+          }
+          .tv-wave {
+            animation: none;
           }
         }
         .tv-pulse {
@@ -481,8 +507,36 @@ function MatrixLayout({
             <span
               aria-hidden
               className="tv-gauge absolute inset-y-0 left-0"
-              style={{ width: `${pct}%`, background: colour, opacity: 0.13 }}
-            />
+              style={{ width: `${pct}%` }}
+            >
+              <span
+                className="absolute inset-0"
+                style={{ background: colour, opacity: 0.13 }}
+              />
+              {/*
+               * The water line. Two crests at different speeds and depths, so
+               * the edge reads as a surface rather than a single sliding shape.
+               *
+               * They animate transform only — never width or left, which would
+               * relayout the header on every frame of an eight-hour day. The
+               * svg is twice the cell's height and travels exactly one period,
+               * so the loop has no seam.
+               */}
+              <svg
+                className="tv-wave tv-wave-a absolute right-[-0.75vw] top-0 h-[200%] w-[2vw]"
+                viewBox="0 0 24 200"
+                preserveAspectRatio="none"
+              >
+                <path d="M 12.0,0 Q 19.5,12.5 12.0,25.0 Q 4.5,37.5 12.0,50.0 Q 19.5,62.5 12.0,75.0 Q 4.5,87.5 12.0,100.0 Q 19.5,112.5 12.0,125.0 Q 4.5,137.5 12.0,150.0 Q 19.5,162.5 12.0,175.0 Q 4.5,187.5 12.0,200.0 L 24,200 L 24,0 Z" fill={colour} opacity={0.13} />
+              </svg>
+              <svg
+                className="tv-wave tv-wave-b absolute right-[-0.28vw] top-0 h-[200%] w-[1.6vw]"
+                viewBox="0 0 24 200"
+                preserveAspectRatio="none"
+              >
+                <path d="M 12.0,0 Q 19.5,12.5 12.0,25.0 Q 4.5,37.5 12.0,50.0 Q 19.5,62.5 12.0,75.0 Q 4.5,87.5 12.0,100.0 Q 19.5,112.5 12.0,125.0 Q 4.5,137.5 12.0,150.0 Q 19.5,162.5 12.0,175.0 Q 4.5,187.5 12.0,200.0 L 24,200 L 24,0 Z" fill={colour} opacity={0.1} />
+              </svg>
+            </span>
             <span
               className="relative flex h-[2vw] w-[2vw] flex-none items-center justify-center rounded-full text-[0.95vw] font-extrabold text-white"
               style={{ background: colour }}
