@@ -7,12 +7,12 @@ import { env } from "next-runtime-env";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 
 import type { dbClient } from "@kan/db/client";
 import { initAuth } from "@kan/auth/server";
 import { createDrizzleClient } from "@kan/db/client";
-import { users } from "@kan/db/schema";
+import { oauthAccessToken, users } from "@kan/db/schema";
 import { createLogger } from "@kan/logger";
 
 const log = createLogger("api");
@@ -144,31 +144,51 @@ export const createRESTContext = async ({ req }: CreateNextContextOptions) => {
   }
 
   // Clients that cannot hold a static key present an OAuth access token
-  // instead — ChatGPT is why this exists. Same bearer header, different token.
-  // getMcpSession returns the access-token row rather than a session, so the
-  // user has to be loaded separately to match the shape everything downstream
-  // expects; from there nothing cares which of the two got us here.
+  // instead — ChatGPT and Claude are why this exists. Same bearer header,
+  // different token.
+  //
+  // The token is looked up here rather than through `auth.api.getMcpSession`,
+  // which cannot be reached while the apiKey plugin is installed: its before
+  // hook fires on every auth endpoint whenever an Authorization header is
+  // present, hashes whatever it finds, fails to match an API key, and throws
+  // "Invalid API key" before the MCP handler ever runs. Every OAuth client got
+  // a 401 on every tool call as a result. Reading the row directly sidesteps
+  // the plugin, and adds the expiry check better-auth's own endpoint omits.
   let oauthUser: User | undefined;
   if (!session) {
     try {
-      const token = await baseAuth.api.getMcpSession({ headers });
-      if (token?.userId) {
-        const row = await db.query.users.findFirst({
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-            emailVerified: true,
-            createdAt: true,
-            updatedAt: true,
-            image: true,
-            stripeCustomerId: true,
-          },
-          where: eq(users.id, token.userId),
+      const authorization = headers.get("authorization");
+      const bearer = authorization?.startsWith("Bearer ")
+        ? authorization.slice(7).trim()
+        : undefined;
+
+      if (bearer) {
+        const token = await db.query.oauthAccessToken.findFirst({
+          columns: { userId: true },
+          where: and(
+            eq(oauthAccessToken.accessToken, bearer),
+            gt(oauthAccessToken.accessTokenExpiresAt, new Date()),
+          ),
         });
-        // name is nullable in the table but not in User, and the session path
-        // fills it the same way.
-        if (row) oauthUser = { ...row, name: row.name ?? "" };
+
+        if (token?.userId) {
+          const row = await db.query.users.findFirst({
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+              emailVerified: true,
+              createdAt: true,
+              updatedAt: true,
+              image: true,
+              stripeCustomerId: true,
+            },
+            where: eq(users.id, token.userId),
+          });
+          // name is nullable in the table but not in User, and the session path
+          // fills it the same way.
+          if (row) oauthUser = { ...row, name: row.name ?? "" };
+        }
       }
     } catch (error) {
       log.warn({ err: error }, "Failed to resolve MCP OAuth session");
