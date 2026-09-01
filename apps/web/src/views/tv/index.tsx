@@ -364,6 +364,21 @@ export default function TvView() {
             display: none;
           }
         }
+        /*
+         * The gauge slides only when the number it shows actually changed —
+         * a transition on width, not a loop. This screen is on all day next to
+         * people working; motion that repeats regardless of events stops being
+         * information within an hour and becomes something to sit beside.
+         * A card being finished is worth a movement. Nothing else is.
+         */
+        .tv-gauge {
+          transition: width 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .tv-gauge {
+            transition: none;
+          }
+        }
         .tv-pulse {
           animation: tvpulse 2.4s infinite;
         }
@@ -440,46 +455,55 @@ function MatrixLayout({
       </div>
       {people.map((p, i) => {
         const theirs = progressOfPerson(p.publicId);
+        const colour = LANE_COLOURS[i % LANE_COLOURS.length]!;
+        const pct = theirs.total
+          ? Math.round((theirs.done / theirs.total) * 100)
+          : 0;
         return (
           <div
             key={p.publicId}
-            className="flex flex-col justify-center gap-[0.4vw] border-b-[0.16vw] border-light-500 border-l border-l-light-300 bg-light-50 px-[1vw] py-[0.8vw]"
+            className="relative flex items-center gap-[0.6vw] overflow-hidden border-b-[0.16vw] border-light-500 border-l border-l-light-300 bg-light-50 px-[1vw] py-[0.8vw]"
           >
-            <div className="flex items-center gap-[0.6vw]">
-              <span
-                className="flex h-[2vw] w-[2vw] flex-none items-center justify-center rounded-full text-[0.95vw] font-extrabold text-white"
-                style={{ background: LANE_COLOURS[i % LANE_COLOURS.length] }}
-              >
-                {initials(p.user?.name ?? p.email)}
-              </span>
-              <span className="truncate text-[1.5vw] font-bold tracking-[-0.02em]">
-                {p.user?.name ?? p.email}
-              </span>
-            </div>
             {/*
-             * A person's bar reports, it does not rank. Deliberately different
-             * from the outcome bars beside it: one neutral grey rather than the
-             * red/amber/green threshold, and the count read before the share.
-             * Those thresholds say "this outcome is behind", which is fair to
-             * say about work; said about a person it would be wrong, because a
-             * card can be ten minutes or three days and this number cannot tell
-             * the difference.
+             * The header fills like a gauge instead of carrying a bar under the
+             * name: across a whole column the length is legible from the far
+             * side of the room, where a 3px bar was not.
+             *
+             * It is tinted with the person's own colour rather than the
+             * red/amber/green the outcomes use. Those thresholds say "this is
+             * behind" — fair about a piece of work, unfair about a person, since
+             * a card can be ten minutes or three days and this cannot tell them
+             * apart. An identity colour says "this is zach's", which is all this
+             * number should be claiming. Kept faint so it stays a background:
+             * the outcomes are the goal, people are how it gets done, and the
+             * hierarchy should not invert.
              */}
-            <div className="flex items-center gap-[0.5vw]">
-              <span className="h-[0.34vw] flex-1 overflow-hidden rounded-full bg-light-500">
-                <span
-                  className="block h-full rounded-full bg-light-800"
-                  style={{
-                    width: theirs.total
-                      ? `${(theirs.done / theirs.total) * 100}%`
-                      : "0%",
-                  }}
-                />
+            <span
+              aria-hidden
+              className="tv-gauge absolute inset-y-0 left-0"
+              style={{ width: `${pct}%`, background: colour, opacity: 0.13 }}
+            />
+            <span
+              className="relative flex h-[2vw] w-[2vw] flex-none items-center justify-center rounded-full text-[0.95vw] font-extrabold text-white"
+              style={{ background: colour }}
+            >
+              {initials(p.user?.name ?? p.email)}
+            </span>
+            <span className="relative truncate text-[1.5vw] font-bold tracking-[-0.02em]">
+              {p.user?.name ?? p.email}
+            </span>
+            <span className="relative ml-auto flex flex-none items-baseline gap-[0.4vw]">
+              <span
+                className="text-[1.25vw] font-extrabold tabular-nums leading-none tracking-[-0.03em]"
+                style={{ color: colour }}
+              >
+                {pct}%
               </span>
-              <span className="flex-none text-[0.8vw] font-bold tabular-nums text-light-900">
+              {/* The count is what keeps this a report rather than a score. */}
+              <span className="text-[0.8vw] font-bold tabular-nums text-light-900">
                 {theirs.done}/{theirs.total}
               </span>
-            </div>
+            </span>
           </div>
         );
       })}
