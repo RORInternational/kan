@@ -12,18 +12,46 @@ import type { NextApiRequest, NextApiResponse } from "next";
  *
  * Generating it per request also makes the values genuinely runtime-editable:
  * changing one in Vercel takes effect without a rebuild.
- *
- * Only NEXT_PUBLIC_-prefixed variables are included, matching what
- * next-runtime-env itself exposes. Nothing else may be added here — this
- * response is public.
  */
+
+/**
+ * Every NEXT_PUBLIC_ variable the client actually reads, and nothing else.
+ *
+ * A prefix match is not safe here. Vercel's "System Environment Variables"
+ * setting injects NEXT_PUBLIC_VERCEL_* at runtime — including the full commit
+ * message and internal project ids — and a prefix match published all of it to
+ * anyone who loaded the page. Listing the keys keeps this response independent
+ * of whatever the platform decides to inject.
+ *
+ * Adding a client variable means adding it here too; it is otherwise undefined
+ * in the browser.
+ */
+const PUBLIC_ENV_KEYS = [
+  "NEXT_PUBLIC_ALLOW_CREDENTIALS",
+  "NEXT_PUBLIC_APP_VERSION",
+  "NEXT_PUBLIC_ATTACHMENTS_BUCKET_NAME",
+  "NEXT_PUBLIC_AVATAR_BUCKET_NAME",
+  "NEXT_PUBLIC_BASE_URL",
+  "NEXT_PUBLIC_DISABLE_EMAIL",
+  "NEXT_PUBLIC_DISABLE_SIGN_UP",
+  "NEXT_PUBLIC_KAN_ENV",
+  "NEXT_PUBLIC_PARTNER_NAME",
+  "NEXT_PUBLIC_POSTHOG_HOST",
+  "NEXT_PUBLIC_POSTHOG_KEY",
+  "NEXT_PUBLIC_STORAGE_DOMAIN",
+  "NEXT_PUBLIC_STORAGE_URL",
+  "NEXT_PUBLIC_UMAMI_ID",
+  "NEXT_PUBLIC_USE_STANDALONE_OUTPUT",
+  "NEXT_PUBLIC_USE_VIRTUAL_HOSTED_URLS",
+  "NEXT_PUBLIC_WHITE_LABEL_HIDE_POWERED_BY",
+] as const;
+
 export default function handler(_req: NextApiRequest, res: NextApiResponse) {
   const publicEnv: Record<string, string> = {};
 
-  for (const [key, value] of Object.entries(process.env)) {
-    if (key.startsWith("NEXT_PUBLIC_") && typeof value === "string") {
-      publicEnv[key] = value;
-    }
+  for (const key of PUBLIC_ENV_KEYS) {
+    const value = process.env[key];
+    if (typeof value === "string") publicEnv[key] = value;
   }
 
   res.setHeader("Content-Type", "application/javascript; charset=utf-8");
