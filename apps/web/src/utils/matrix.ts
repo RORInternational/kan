@@ -102,6 +102,23 @@ export function buildMatrix(board: Board): Matrix {
   };
 }
 
+/**
+ * A card's own progress, from its checklist items across every group — the
+ * groups are only a heading, so they are flattened before counting.
+ *
+ * Returns null rather than 0/0 when the card has no checklist: "nobody wrote
+ * any steps" and "no step is done yet" are different things, and a UI that
+ * renders them the same reads as the second one.
+ */
+export const checklistProgress = (card: Card) => {
+  const items = card.checklists.flatMap((c) => c.items);
+  if (!items.length) return null;
+  return {
+    done: items.filter((i) => i.completed).length,
+    total: items.length,
+  };
+};
+
 export const initials = (name: string) =>
   name
     .split(/\s+/)

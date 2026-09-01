@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { RouterOutputs } from "~/utils/api";
 import { api } from "~/utils/api";
-import { buildMatrix, initials, isBlocked } from "~/utils/matrix";
+import { buildMatrix, checklistProgress, initials, isBlocked } from "~/utils/matrix";
 
 /** How often to pull fresh board data. */
 const POLL_MS = 10_000;
@@ -31,6 +31,77 @@ const LANE_COLOURS = [
 
 const formatDue = (due: Date) =>
   due.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+
+/**
+ * Overdue is judged against the start of today, not the current moment: a card
+ * due "3 Sep" is not late at 9am on the 3rd. The board page draws the same line.
+ */
+const isOverdue = (due: Date) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return due.getTime() < startOfToday.getTime();
+};
+
+/**
+ * The status indicator, which doubles as the card's own progress.
+ *
+ * A solid disc means the card has no checklist — status only, nothing to
+ * report. A ring means it does, and the arc is how far along it is. Two shapes
+ * rather than an empty ring, because an empty ring reads as "no step done yet"
+ * when the truth is "nobody wrote any steps".
+ *
+ * 1.6vw is the floor for this: on a 55" screen at 5m an arc smaller than that
+ * is visible but its endpoints are not, so the fill cannot be judged.
+ */
+function StatusMark({
+  colour,
+  progress,
+}: {
+  colour: string;
+  progress: { done: number; total: number } | null;
+}) {
+  if (!progress) {
+    return (
+      <span
+        className="flex h-[1.6vw] w-[1.6vw] flex-none items-center justify-center"
+        aria-hidden
+      >
+        <span
+          className="h-[0.8vw] w-[0.8vw] rounded-full"
+          style={{ background: colour }}
+        />
+      </span>
+    );
+  }
+
+  const pct = Math.round((progress.done / progress.total) * 100);
+
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className="h-[1.6vw] w-[1.6vw] flex-none -rotate-90"
+      role="img"
+      aria-label={`${progress.done} of ${progress.total} steps done`}
+    >
+      <circle cx="16" cy="16" r="13" fill="none" stroke="#D9DDE2" strokeWidth="4.5" />
+      {pct > 0 && (
+        <circle
+          cx="16"
+          cy="16"
+          r="13"
+          fill="none"
+          stroke={colour}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          // pathLength normalises the circumference to 100 so the dash array is
+          // just the percentage — no 2*pi*r arithmetic to keep in sync with r.
+          pathLength={100}
+          strokeDasharray={`${pct} ${100 - pct}`}
+        />
+      )}
+    </svg>
+  );
+}
 
 /**
  * The page already fills the window, but a browser still shows its own chrome.
@@ -469,17 +540,17 @@ function MatrixRow({
                   }
                 >
                   <div className="flex items-start gap-[0.55vw]">
-                    <span
-                      className="mt-[0.3vw] h-[0.8vw] w-[0.8vw] flex-none rounded-full"
-                      style={{
-                        background: blocked
+                    <StatusMark
+                      colour={
+                        blocked
                           ? "#DC2626"
                           : isDone
                             ? "#1FAE6B"
                             : stage.toLowerCase().includes("working")
                               ? "#2563EB"
-                              : "#E58E14",
-                      }}
+                              : "#E58E14"
+                      }
+                      progress={checklistProgress(card)}
                     />
                     <div className="min-w-0">
                       <p
@@ -489,15 +560,25 @@ function MatrixRow({
                       >
                         {card.title}
                       </p>
-                      {/* The stage name is dropped: the dot already says it, the
-                          footer has the key, and at 0.82vw nobody across the room
-                          could read it. A due date is not encoded anywhere else,
-                          so it stays. */}
-                      {card.dueDate && (
-                        <p className="mt-[0.12vw] text-[0.82vw] font-semibold text-light-900">
-                          {formatDue(new Date(card.dueDate))}
-                        </p>
-                      )}
+                      {/* The stage name is dropped: the mark already says it and
+                          the footer has the key. A due date is encoded nowhere
+                          else, so it stays — and it turns red once missed, which
+                          is the whole reason to put a date on a wall. */}
+                      {card.dueDate &&
+                        (() => {
+                          const due = new Date(card.dueDate);
+                          const late = !isDone && isOverdue(due);
+                          return (
+                            <p
+                              className={`mt-[0.12vw] text-[0.86vw] font-bold ${
+                                late ? "text-[#DC2626]" : "text-light-900"
+                              }`}
+                            >
+                              {formatDue(due)}
+                              {late && " · overdue"}
+                            </p>
+                          );
+                        })()}
                     </div>
                   </div>
                 </article>
