@@ -17,9 +17,13 @@ it.
 
 ## Who you are acting as
 
-The API key belongs to the person talking to you. Every card you create or move
+The credential belongs to the person talking to you — an API key if they set the
+server up with one, an OAuth authorisation if their client signed them in
+instead. Either way it resolves to their account. Every card you create or move
 is authored by **them**, and you have exactly their permissions. If an action is
 refused, that is a real permission boundary, not a bug to work around.
+
+Credentials are personal. Never suggest sharing one, and never repeat one back.
 
 ## The system
 

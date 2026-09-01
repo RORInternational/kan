@@ -224,28 +224,62 @@ Kan ships with a [Model Context Protocol](https://modelcontextprotocol.io) (MCP)
 
 ### Prerequisites
 
-- Node.js 18+
 - A running Kan instance (self-hosted or cloud)
-- A Kan API key (Settings → API Keys → Create key)
+- A Kan API key (Settings → API Keys → Create key), unless your client uses OAuth
+- Node.js 18+, for the stdio transport only
 
-### Installation
+### Two ways to connect
 
-You do **not** need to clone this repository. The recommended way is to use `npx`, which runs the server on-demand and always uses the latest version — no global install required:
+| Transport | Auth | Who it is for |
+| --- | --- | --- |
+| **Streamable HTTP** (recommended) | API key, or OAuth | Any client that takes a server URL — Codex, ChatGPT, Claude, Cursor. Nothing to install |
+| **stdio** | API key in an env var | Clients that only launch a local subprocess, and offline use |
+
+Streamable HTTP is the path most people want: the server already runs as part of
+your Kan deployment at `/api/mcp`, so there is nothing to install and nothing to
+keep up to date.
+
+### Streamable HTTP (recommended)
+
+Point your client at:
+
+```
+https://your-kan-instance.com/api/mcp
+```
+
+**With an API key.** Create one under Settings → API Keys and send it as the
+bearer token. `x-api-key` works too, and a bare value with no `Bearer ` prefix is
+accepted:
+
+```
+Authorization: Bearer kan_your_api_key_here
+```
+
+**With OAuth.** Clients that cannot hold a static key — ChatGPT among them —
+register themselves and take the person through a normal sign-in. Nothing to
+configure: the discovery documents are served from the domain root and dynamic
+client registration is enabled, so the client finds everything it needs.
+
+Either way the request resolves to a real user account, so every card records
+who actually created it.
+
+### stdio
+
+For clients that launch a local subprocess. Run it with `npx`, which always
+fetches the latest version:
 
 ```bash
 npx -y @kan/mcp
 ```
 
-Alternatively, install it globally:
+Or install it globally:
 
 ```bash
 npm install -g @kan/mcp
 kan-mcp
 ```
 
-### Configuration
-
-The server is configured via two environment variables:
+It is configured with two environment variables:
 
 | Variable        | Description                         | Example                        |
 | --------------- | ----------------------------------- | ------------------------------ |
@@ -293,7 +327,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-#### Cursor / Codex / other clients
+#### Other stdio clients
 
 Use the same `command` + `args` + `env` pattern above — all MCP stdio clients follow the same format.
 

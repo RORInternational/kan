@@ -70,9 +70,20 @@ The single most important thing to understand: `appRouter` in `packages/api/src/
 
 1. **tRPC** — `apps/web/src/pages/api/trpc/[trpc].ts`, context via `createTRPCContext`. Superjson transformer, so Dates survive the wire.
 2. **REST** — `apps/web/src/pages/api/v1/[...trpc].ts` wraps the same router in `trpc-to-openapi`'s handler with `createRESTContext`, behind `withRateLimit({points: 100, duration: 60})` and CORS. A procedure is only reachable over REST if it declares `.meta({ openapi: { method, path, tags, protect } })`. The spec is generated at `/api/v1/openapi.json` from `packages/api/src/openapi.ts`.
-3. **MCP** — `packages/mcp` is a standalone stdio server that talks to that REST surface over HTTP.
+3. **MCP** — `packages/mcp` registers the tools; two entry points serve them, and both are pure HTTP clients of the REST surface above.
+   - **Streamable HTTP** — `apps/web/src/pages/api/mcp.ts`, part of the deployment, at `/api/mcp`. Stateless (`sessionIdGenerator: undefined`, `enableJsonResponse: true`), a fresh server per request. This is what Codex and ChatGPT connect to.
+   - **stdio** — `packages/mcp/src/index.ts`, the `kan-mcp` binary published as `@kan/mcp`, for clients that launch a local subprocess.
 
 The three contexts (`createTRPCContext`, `createNextApiContext`, `createRESTContext`) are near-identical but differ meaningfully: only `createRESTContext` swallows session-lookup errors and treats them as unauthenticated, and each stamps `transport` (`"trpc"` | `"rest"`) plus a `requestId` used by the logging middleware.
+
+### Two ways to authenticate the REST/MCP surface
+
+`createRESTContext` resolves a bearer token by trying two things in order, and everything downstream sees the same `ctx.user` either way:
+
+1. **API key** — the Better Auth `apiKey` plugin (`packages/auth/src/plugins.ts`) runs with `enableSessionForAPIKeys: true` and a `customAPIKeyGetter` that accepts `Authorization: Bearer kan_…` or `x-api-key`. It SHA-256s the key, looks up the hash in the `apiKey` table, checks `enabled` / `expiresAt` / `remaining` / rate limit, and synthesises a session. Keys are never stored in plaintext and are shown once at creation.
+2. **OAuth** — for clients that cannot hold a static key (ChatGPT). If no session resolved, `baseAuth.api.getMcpSession({ headers })` is tried; it returns an access-token row, so the user is loaded separately to match the shape the session path produces. The `oidcProvider` + `mcp` plugins supply discovery, dynamic client registration and PKCE; `apps/web/next.config.js` rewrites `/.well-known/oauth-*` to routes under `pages/api/well-known/`, and `/oauth/consent` is the approval screen.
+
+Authentication answers *who*; `assertPermission(db, userId, workspaceId, "resource:action")` answers *what they may do*. Procedures resolve the workspace from the supplied public id before checking, so the caller cannot nominate the workspace their permissions are checked against.
 
 Procedure builders in `packages/api/src/trpc.ts`: `publicProcedure`, `protectedProcedure` (adds auth guard), `adminProtectedProcedure` (gated on the `x-admin-api-key` header matching `KAN_ADMIN_API_KEY`). All include `loggingMiddleware`, which logs input, duration, and a TRPC-code→HTTP-status mapping; it only logs user email when `NEXT_PUBLIC_KAN_ENV === "cloud"`.
 
@@ -80,9 +91,10 @@ Procedure builders in `packages/api/src/trpc.ts`: `publicProcedure`, `protectedP
 
 A thin, dependency-light MCP server published as `@kan/mcp` — the only non-private package in the monorepo. It does **not** import `@kan/api` or the database; it is a pure HTTP client, which is why it can be `npx`'d against any remote Kan instance.
 
-- `src/client.ts` — `kanRequest(method, path, body)`, reads `KAN_BASE_URL` and `KAN_API_TOKEN` from env at call time (not module load), targets `{baseUrl}/api/v1{path}`, throws `KanApiError` on non-2xx.
+- `src/client.ts` — `kanRequest(method, path, body)` targets `{baseUrl}/api/v1{path}` and throws `KanApiError` on non-2xx. Credentials come from `kanContext`, an `AsyncLocalStorage`, falling back to `KAN_BASE_URL` / `KAN_API_TOKEN` read at call time. The fallback is the stdio path, where the process serves one person; over HTTP one process serves everyone, so `api/mcp.ts` wraps each request in `kanContext.run(...)` and every tool call resolves the caller's own token.
 - `src/tools/*.ts` — one `register*Tools(server)` per resource, each registering tools via `server.tool(name, description, zodShape, handler)` and returning `{ content: [{ type: "text", text: JSON.stringify(data, null, 2) }] }`. 46 tools total across workspace, board, list, card, checklist, label, member.
-- `src/index.ts` — instantiates `McpServer`, calls each registrar, connects `StdioServerTransport`.
+- `src/server.ts` — `buildServer()` registers all seven registrars. Shared by both entry points: stdio connects one long-lived instance, the HTTP route builds a fresh one per request.
+- `src/index.ts` — the stdio entry: `buildServer()` plus `StdioServerTransport`.
 
 Adding a tool means: ensure the underlying tRPC procedure has `openapi` meta (or it has no REST endpoint to call), then add a `server.tool(...)` in the matching resource file. The tool count in `README.md` is stated explicitly and goes stale.
 
