@@ -399,7 +399,8 @@ function MatrixLayout({
   board: Board;
   freshFor: (publicId: string) => boolean;
 }) {
-  const { outcomes, people, cellOf, progressOf, hidden } = useMemo(
+  const { outcomes, people, cellOf, progressOf, progressOfPerson, hidden } =
+    useMemo(
     () => buildMatrix(board),
     [board],
   );
@@ -437,22 +438,51 @@ function MatrixLayout({
           Key outcomes
         </span>
       </div>
-      {people.map((p, i) => (
-        <div
-          key={p.publicId}
-          className="flex items-center gap-[0.6vw] border-b-[0.16vw] border-light-500 border-l border-l-light-300 bg-light-50 px-[1vw] py-[0.8vw]"
-        >
-          <span
-            className="flex h-[2vw] w-[2vw] flex-none items-center justify-center rounded-full text-[0.95vw] font-extrabold text-white"
-            style={{ background: LANE_COLOURS[i % LANE_COLOURS.length] }}
+      {people.map((p, i) => {
+        const theirs = progressOfPerson(p.publicId);
+        return (
+          <div
+            key={p.publicId}
+            className="flex flex-col justify-center gap-[0.4vw] border-b-[0.16vw] border-light-500 border-l border-l-light-300 bg-light-50 px-[1vw] py-[0.8vw]"
           >
-            {initials(p.user?.name ?? p.email)}
-          </span>
-          <span className="truncate text-[1.5vw] font-bold tracking-[-0.02em]">
-            {p.user?.name ?? p.email}
-          </span>
-        </div>
-      ))}
+            <div className="flex items-center gap-[0.6vw]">
+              <span
+                className="flex h-[2vw] w-[2vw] flex-none items-center justify-center rounded-full text-[0.95vw] font-extrabold text-white"
+                style={{ background: LANE_COLOURS[i % LANE_COLOURS.length] }}
+              >
+                {initials(p.user?.name ?? p.email)}
+              </span>
+              <span className="truncate text-[1.5vw] font-bold tracking-[-0.02em]">
+                {p.user?.name ?? p.email}
+              </span>
+            </div>
+            {/*
+             * A person's bar reports, it does not rank. Deliberately different
+             * from the outcome bars beside it: one neutral grey rather than the
+             * red/amber/green threshold, and the count read before the share.
+             * Those thresholds say "this outcome is behind", which is fair to
+             * say about work; said about a person it would be wrong, because a
+             * card can be ten minutes or three days and this number cannot tell
+             * the difference.
+             */}
+            <div className="flex items-center gap-[0.5vw]">
+              <span className="h-[0.34vw] flex-1 overflow-hidden rounded-full bg-light-500">
+                <span
+                  className="block h-full rounded-full bg-light-800"
+                  style={{
+                    width: theirs.total
+                      ? `${(theirs.done / theirs.total) * 100}%`
+                      : "0%",
+                  }}
+                />
+              </span>
+              <span className="flex-none text-[0.8vw] font-bold tabular-nums text-light-900">
+                {theirs.done}/{theirs.total}
+              </span>
+            </div>
+          </div>
+        );
+      })}
 
       {/* one row per outcome */}
       {outcomes.map((o, rowIndex) => {
@@ -510,7 +540,20 @@ function MatrixRow({
 }) {
   return (
     <>
-      <div className="flex flex-col justify-center border-b border-light-300 bg-light-200 px-[1.1vw] py-[0.8vw]">
+      {/*
+       * The label's own colourCode finally does something. It stopped colouring
+       * the progress bar when that bar started reporting how far along an
+       * outcome is — a colour cannot mean "which outcome" and "how far" at once.
+       * As a spine it means identity again, which is what a label colour is for,
+       * and it gives the eye a hard edge where one outcome ends and the next
+       * begins.
+       */}
+      <div
+        className="flex flex-col justify-center border-b-[0.12vw] border-light-600 bg-light-200 py-[0.8vw] pl-[1.1vw] pr-[1.1vw]"
+        style={{
+          borderLeft: `0.42vw solid ${outcome.colourCode ?? "#8A8A8A"}`,
+        }}
+      >
         <p className="mb-[0.15vw] text-[0.82vw] font-bold uppercase tracking-[0.16em] text-light-900">
           Outcome {String(rowIndex + 1).padStart(2, "0")}
         </p>
@@ -547,7 +590,7 @@ function MatrixRow({
             key={p.publicId}
             // overflow is visible so the hover panel can escape the cell; the
             // rows are content-sized now, so there is nothing left to clip.
-            className="flex min-h-0 flex-col gap-[0.42vw] border-b border-light-300 border-l border-l-light-300 p-[0.55vw]"
+            className="flex min-h-0 flex-col gap-[0.42vw] border-b-[0.12vw] border-light-600 border-l border-l-light-300 p-[0.55vw]"
           >
             {items.slice(0, MAX_CARDS_PER_CELL).map((entry) => (
               <MatrixCard

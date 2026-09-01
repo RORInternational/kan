@@ -30,6 +30,8 @@ export interface Matrix {
   people: Board["workspace"]["members"];
   cellOf: (labelPublicId: string, memberPublicId: string) => MatrixCard[];
   progressOf: (labelPublicId: string) => { done: number; total: number };
+  /** The same count for one person, across every outcome. */
+  progressOfPerson: (memberPublicId: string) => { done: number; total: number };
   /** Cards that belong in no cell, so the UI can say so rather than drop them. */
   hidden: number;
   totals: { all: number; done: number };
@@ -85,6 +87,16 @@ export function buildMatrix(board: Board): Matrix {
     };
   };
 
+  const progressOfPerson = (memberPublicId: string) => {
+    const theirs = rows.filter(({ card }) =>
+      card.members.some((m) => m.publicId === memberPublicId),
+    );
+    return {
+      done: theirs.filter((r) => r.isDone).length,
+      total: theirs.length,
+    };
+  };
+
   const outcomeIds = new Set(outcomes.map((o) => o.publicId));
   const hidden = rows.filter(
     ({ card }) =>
@@ -97,6 +109,7 @@ export function buildMatrix(board: Board): Matrix {
     people,
     cellOf,
     progressOf,
+    progressOfPerson,
     hidden,
     totals: { all: rows.length, done: rows.filter((r) => r.isDone).length },
   };
