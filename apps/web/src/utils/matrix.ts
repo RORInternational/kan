@@ -119,6 +119,22 @@ export const checklistProgress = (card: Card) => {
   };
 };
 
+/**
+ * The first step nobody has ticked yet, in the order a person reads them:
+ * groups in their own order, items within each group in theirs.
+ *
+ * This is the one thing on a wall card that is not derivable from anything
+ * else on it — "what is he actually doing right now".
+ */
+export const nextStep = (card: Card) => {
+  for (const list of card.checklists) {
+    for (const item of list.items) {
+      if (!item.completed) return item.title;
+    }
+  }
+  return null;
+};
+
 export const initials = (name: string) =>
   name
     .split(/\s+/)

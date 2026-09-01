@@ -4,7 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { RouterOutputs } from "~/utils/api";
 import { api } from "~/utils/api";
-import { buildMatrix, checklistProgress, initials, isBlocked } from "~/utils/matrix";
+import {
+  buildMatrix,
+  checklistProgress,
+  initials,
+  isBlocked,
+  nextStep,
+} from "~/utils/matrix";
 
 /** How often to pull fresh board data. */
 const POLL_MS = 10_000;
@@ -16,7 +22,11 @@ const FRESH_MS = 90_000;
  * mid-card and silently disappears. Raise if lanes look sparse.
  */
 const MAX_CARDS_PER_LANE = 5;
-const MAX_CARDS_PER_CELL = 3;
+// Two, not three: the cards now carry a progress row and a due date, so a
+// third one no longer fits a cell without crowding the two that matter.
+const MAX_CARDS_PER_CELL = 2;
+/** Past this many steps the pips are thinner than the gaps between them. */
+const MAX_PIPS = 8;
 type Board = NonNullable<RouterOutputs["board"]["byId"]>;
 type Card = Board["lists"][number]["cards"][number];
 
@@ -330,6 +340,30 @@ export default function TvView() {
         :fullscreen:hover .tv-fs {
           opacity: 1;
         }
+        /*
+         * The checklist panel is a desk affordance, opened from Showcase with a
+         * mouse. Plain CSS on purpose: this page re-renders every 10 seconds, so
+         * holding "which card is hovered" in React state would make the panel
+         * flicker on every poll.
+         */
+        .tv-peek {
+          display: none;
+        }
+        .tv-card:hover .tv-peek {
+          display: block;
+        }
+        .tv-card:hover {
+          z-index: 20;
+        }
+        /* A kiosk pointer parked over a card would leave one open all day. */
+        :fullscreen .tv-card:hover .tv-peek {
+          display: none;
+        }
+        @media (hover: none) {
+          .tv-card:hover .tv-peek {
+            display: none;
+          }
+        }
         .tv-pulse {
           animation: tvpulse 2.4s infinite;
         }
@@ -391,7 +425,10 @@ function MatrixLayout({
       className="grid min-h-0 flex-1"
       style={{
         gridTemplateColumns: `1.25fr repeat(${people.length}, minmax(0, 1fr))`,
-        gridTemplateRows: `auto repeat(${outcomes.length}, minmax(0, 1fr))`,
+        // min-content floor, 1fr ceiling: a row can never be shorter than the
+        // cards in it (which is how a taller card used to get clipped), and any
+        // space left over is still shared out so the grid fills the screen.
+        gridTemplateRows: `auto repeat(${outcomes.length}, minmax(min-content, 1fr))`,
       }}
     >
       {/* header row */}
@@ -508,82 +545,17 @@ function MatrixRow({
         return (
           <div
             key={p.publicId}
-            className="flex min-h-0 flex-col gap-[0.42vw] overflow-hidden border-b border-light-300 border-l border-l-light-300 p-[0.55vw]"
+            // overflow is visible so the hover panel can escape the cell; the
+            // rows are content-sized now, so there is nothing left to clip.
+            className="flex min-h-0 flex-col gap-[0.42vw] border-b border-light-300 border-l border-l-light-300 p-[0.55vw]"
           >
-            {items.slice(0, MAX_CARDS_PER_CELL).map(({ card, stage, isDone }) => {
-              const blocked = isBlocked(card);
-              const fresh = freshFor(card.publicId);
-              return (
-                <article
-                  key={card.publicId}
-                  className="rounded-[0.45vw] border bg-light-50 px-[0.62vw] py-[0.5vw]"
-                  style={
-                    // Blocked outranks everything else. It used to sit below
-                    // `fresh`, so a blocked card that had just moved lost its red
-                    // for 90 seconds — the loudest state hidden by the least
-                    // important one. The left bar carries further across a room
-                    // than a tinted background does.
-                    blocked
-                      ? {
-                          borderColor: "#F1B4B4",
-                          background: "#FEF2F2",
-                          borderLeftColor: "#DC2626",
-                          borderLeftWidth: "0.34vw",
-                        }
-                      : fresh
-                        ? { borderColor: "#059669", background: "#F0FDF6" }
-                        : isDone
-                          ? { borderColor: "#E3E7EA", background: "#F4F7F5" }
-                          : stage.toLowerCase().includes("working")
-                            ? { borderColor: "#B9D2FA", background: "#EEF4FF" }
-                            : { borderColor: "#E3E7EA" }
-                  }
-                >
-                  <div className="flex items-start gap-[0.55vw]">
-                    <StatusMark
-                      colour={
-                        blocked
-                          ? "#DC2626"
-                          : isDone
-                            ? "#1FAE6B"
-                            : stage.toLowerCase().includes("working")
-                              ? "#2563EB"
-                              : "#E58E14"
-                      }
-                      progress={checklistProgress(card)}
-                    />
-                    <div className="min-w-0">
-                      <p
-                        className={`text-[1.02vw] font-semibold leading-[1.26] text-light-1000 ${
-                          isDone ? "line-through opacity-60" : ""
-                        }`}
-                      >
-                        {card.title}
-                      </p>
-                      {/* The stage name is dropped: the mark already says it and
-                          the footer has the key. A due date is encoded nowhere
-                          else, so it stays — and it turns red once missed, which
-                          is the whole reason to put a date on a wall. */}
-                      {card.dueDate &&
-                        (() => {
-                          const due = new Date(card.dueDate);
-                          const late = !isDone && isOverdue(due);
-                          return (
-                            <p
-                              className={`mt-[0.12vw] text-[0.86vw] font-bold ${
-                                late ? "text-[#DC2626]" : "text-light-900"
-                              }`}
-                            >
-                              {formatDue(due)}
-                              {late && " · overdue"}
-                            </p>
-                          );
-                        })()}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            {items.slice(0, MAX_CARDS_PER_CELL).map((entry) => (
+              <MatrixCard
+                key={entry.card.publicId}
+                entry={entry}
+                fresh={freshFor(entry.card.publicId)}
+              />
+            ))}
             {items.length > MAX_CARDS_PER_CELL && (
               <p className="text-center text-[0.85vw] font-bold text-light-900">
                 + {items.length - MAX_CARDS_PER_CELL} more
@@ -601,6 +573,178 @@ function progressColour(pct: number) {
   if (pct >= 70) return "#1FAE6B";
   if (pct >= 30) return "#E58E14";
   return "#DC2626";
+}
+
+/**
+ * One card in the matrix.
+ *
+ * Three readings of the same progress, aimed at three distances: the ring is
+ * shape for someone walking past, the percentage and pips are precision for
+ * someone standing at the board, and the hover panel is the full list for
+ * someone who opened Showcase at their desk. The wall has no mouse, so nothing
+ * that only appears on hover may be information the wall needs — the next step
+ * is printed on the card for that reason.
+ */
+function MatrixCard({
+  entry,
+  fresh,
+}: {
+  entry: { card: Card; stage: string; isDone: boolean };
+  fresh: boolean;
+}) {
+  const { card, stage, isDone } = entry;
+  const blocked = isBlocked(card);
+  const working = stage.toLowerCase().includes("working");
+  const progress = checklistProgress(card);
+  const step = nextStep(card);
+
+  const colour = blocked
+    ? "#DC2626"
+    : isDone
+      ? "#1FAE6B"
+      : working
+        ? "#2563EB"
+        : "#E58E14";
+
+  const pct = progress
+    ? Math.round((progress.done / progress.total) * 100)
+    : null;
+
+  // The step only earns its line where it answers something: on a card being
+  // worked, or a blocked one where the step is usually what is being waited on.
+  // On a Next card "next step" just means "step one", and on a Done card there
+  // is none.
+  const showStep = !!step && (working || blocked);
+
+  const due = card.dueDate ? new Date(card.dueDate) : null;
+  const late = due && !isDone && isOverdue(due);
+
+  return (
+    <article
+      className="tv-card relative rounded-[0.45vw] border bg-light-50 px-[0.62vw] py-[0.5vw]"
+      style={
+        // Blocked outranks everything else. It used to sit below `fresh`, so a
+        // blocked card that had just moved lost its red for 90 seconds — the
+        // loudest state hidden by the least important one. The left bar carries
+        // further across a room than a tinted background does.
+        blocked
+          ? {
+              borderColor: "#F1B4B4",
+              background: "#FEF2F2",
+              borderLeftColor: "#DC2626",
+              borderLeftWidth: "0.34vw",
+            }
+          : fresh
+            ? { borderColor: "#059669", background: "#F0FDF6" }
+            : isDone
+              ? { borderColor: "#E3E7EA", background: "#F4F7F5" }
+              : working
+                ? { borderColor: "#B9D2FA", background: "#EEF4FF" }
+                : { borderColor: "#E3E7EA" }
+      }
+    >
+      <div className="flex items-start gap-[0.55vw]">
+        <StatusMark colour={colour} progress={progress} />
+        <p
+          className={`min-w-0 flex-1 text-[1.02vw] font-semibold leading-[1.26] text-light-1000 ${
+            isDone ? "line-through opacity-60" : ""
+          }`}
+        >
+          {card.title}
+        </p>
+        {pct !== null && (
+          <span
+            className="flex-none pt-[0.06vw] text-[0.95vw] font-extrabold tabular-nums leading-none tracking-[-0.02em]"
+            style={{ color: colour }}
+          >
+            {pct}%
+          </span>
+        )}
+      </div>
+
+      {progress && (
+        <div className="ml-[2.15vw] mt-[0.36vw] flex min-w-0 items-center gap-[0.5vw]">
+          {progress.total <= MAX_PIPS && (
+            <span className="flex flex-none gap-[0.18vw]">
+              {Array.from({ length: progress.total }, (_, i) => (
+                <span
+                  key={i}
+                  className="h-[0.52vw] w-[0.52vw] rounded-full"
+                  style={
+                    i < progress.done
+                      ? { background: colour }
+                      : i === progress.done
+                        ? { background: "#FFFFFF", boxShadow: `inset 0 0 0 0.16vw ${colour}` }
+                        : { background: "#D3D8DE" }
+                  }
+                />
+              ))}
+            </span>
+          )}
+          {showStep && (
+            // Always one line. The wall repaints every 10s, and a title that
+            // wraps would change the card's height — a layout that twitches
+            // pulls the eye far harder than a truncated word costs.
+            <span className="min-w-0 truncate text-[0.84vw] font-semibold text-light-950">
+              <span className="mr-[0.2vw] font-bold" style={{ color: colour }}>
+                &rsaquo;
+              </span>
+              {step}
+            </span>
+          )}
+        </div>
+      )}
+
+      {due && (
+        <p
+          className={`ml-[2.15vw] mt-[0.3vw] text-[0.84vw] font-bold ${
+            late ? "text-[#DC2626]" : "text-light-900"
+          }`}
+        >
+          {formatDue(due)}
+          {late && " \u00b7 overdue"}
+        </p>
+      )}
+
+      {progress && (
+        // Desk-only enrichment. Hidden on the wall by the :fullscreen rule in
+        // the global stylesheet: a kiosk pointer parked over a card would
+        // otherwise leave a panel hanging open all day.
+        <div className="tv-peek absolute left-[0.8vw] top-[calc(100%+0.3vw)] z-20 w-[15vw] rounded-[0.4vw] border border-light-400 bg-light-50 p-[0.6vw] shadow-lg">
+          <div className="mb-[0.4vw] flex justify-between border-b border-light-300 pb-[0.3vw] text-[0.62vw] font-bold uppercase tracking-[0.12em] text-light-900">
+            <span>Checklist</span>
+            <span className="tabular-nums">
+              {progress.done} / {progress.total}
+            </span>
+          </div>
+          {card.checklists.map((group) => (
+            <div key={group.publicId}>
+              {card.checklists.length > 1 && (
+                <p className="mt-[0.35vw] text-[0.58vw] font-bold uppercase tracking-[0.1em] text-light-800">
+                  {group.name}
+                </p>
+              )}
+              {group.items.map((item) => (
+                <p
+                  key={item.publicId}
+                  className={`flex gap-[0.35vw] py-[0.12vw] text-[0.76vw] leading-[1.35] ${
+                    item.completed
+                      ? "text-light-800 line-through"
+                      : "font-semibold text-light-1000"
+                  }`}
+                >
+                  <span className="flex-none" style={{ color: item.completed ? "#1FAE6B" : "#B4BBC4" }}>
+                    {item.completed ? "\u2713" : "\u25a2"}
+                  </span>
+                  {item.title}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+  );
 }
 
 /* ------------------------------------------------------------------ */
