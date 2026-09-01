@@ -375,34 +375,43 @@ export default function TvView() {
           transition: width 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
         }
         /*
-         * Slow on purpose. A crest crossing the cell in seven seconds reads as
-         * water; the same shape in one second reads as a loading spinner, and a
-         * screen that looks like it is loading all day teaches people to ignore
-         * it. Only transform is animated, so these frames never touch layout.
+         * Only opacity and transform are animated — never width, left or
+         * filter. This wall runs eight hours a day next to people, and a
+         * per-frame relayout or a live blur is heat they would sit beside.
          */
-        .tv-wave {
-          will-change: transform;
+        .tv-edge {
+          animation: tvedge 3.2s ease-in-out infinite;
         }
-        .tv-wave-a {
-          animation: tvwave 7s linear infinite;
-        }
-        .tv-wave-b {
-          animation: tvwave 11s linear infinite reverse;
-        }
-        @keyframes tvwave {
-          from {
-            transform: translateY(0);
+        @keyframes tvedge {
+          0%,
+          100% {
+            opacity: 0.45;
           }
-          to {
-            transform: translateY(-25%);
+          50% {
+            opacity: 1;
           }
         }
-        @media (prefers-reduced-motion: reduce) {
-          .tv-gauge {
-            transition: none;
+        .tv-sweep {
+          animation: tvsweep 6s ease-in-out infinite;
+        }
+        @keyframes tvsweep {
+          0% {
+            transform: translateX(-140%);
+            opacity: 0;
           }
-          .tv-wave {
-            animation: none;
+          10% {
+            opacity: 1;
+          }
+          40% {
+            opacity: 1;
+          }
+          50% {
+            transform: translateX(340%);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(340%);
+            opacity: 0;
           }
         }
         .tv-pulse {
@@ -511,31 +520,39 @@ function MatrixLayout({
             >
               <span
                 className="absolute inset-0"
-                style={{ background: colour, opacity: 0.13 }}
+                style={{ background: colour, opacity: 0.1 }}
               />
               {/*
-               * The water line. Two crests at different speeds and depths, so
-               * the edge reads as a surface rather than a single sliding shape.
-               *
-               * They animate transform only — never width or left, which would
-               * relayout the header on every frame of an eight-hour day. The
-               * svg is twice the cell's height and travels exactly one period,
-               * so the loop has no seam.
+               * A scanner pass, not a crawl: it crosses in three seconds and
+               * then the cell is still for three. Something that never stops
+               * moving stops being read within the hour, and this screen is on
+               * beside people all day.
                */}
-              <svg
-                className="tv-wave tv-wave-a absolute right-[-0.75vw] top-0 h-[200%] w-[2vw]"
-                viewBox="0 0 24 200"
-                preserveAspectRatio="none"
+              <span
+                className="tv-sweep absolute inset-y-0 left-0 w-[34%]"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${colour}2E, transparent)`,
+                }}
+              />
+              {/*
+               * The water line, lit. On a light wall a glow cannot be additive
+               * bloom — there is nothing to bloom against — so it is built the
+               * way it actually reads here: one saturated hairline at the level,
+               * with a halo bleeding back into the fill, breathing in intensity
+               * rather than moving. Position stays put, so the number the gauge
+               * reports never looks like it is drifting.
+               */}
+              <span
+                className="tv-edge absolute inset-y-0 right-0 w-[2.4vw]"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${colour}59)`,
+                }}
               >
-                <path d="M 12.0,0 Q 19.5,12.5 12.0,25.0 Q 4.5,37.5 12.0,50.0 Q 19.5,62.5 12.0,75.0 Q 4.5,87.5 12.0,100.0 Q 19.5,112.5 12.0,125.0 Q 4.5,137.5 12.0,150.0 Q 19.5,162.5 12.0,175.0 Q 4.5,187.5 12.0,200.0 L 24,200 L 24,0 Z" fill={colour} opacity={0.13} />
-              </svg>
-              <svg
-                className="tv-wave tv-wave-b absolute right-[-0.28vw] top-0 h-[200%] w-[1.6vw]"
-                viewBox="0 0 24 200"
-                preserveAspectRatio="none"
-              >
-                <path d="M 12.0,0 Q 19.5,12.5 12.0,25.0 Q 4.5,37.5 12.0,50.0 Q 19.5,62.5 12.0,75.0 Q 4.5,87.5 12.0,100.0 Q 19.5,112.5 12.0,125.0 Q 4.5,137.5 12.0,150.0 Q 19.5,162.5 12.0,175.0 Q 4.5,187.5 12.0,200.0 L 24,200 L 24,0 Z" fill={colour} opacity={0.1} />
-              </svg>
+                <span
+                  className="absolute inset-y-0 right-0 w-[0.16vw]"
+                  style={{ background: colour }}
+                />
+              </span>
             </span>
             <span
               className="relative flex h-[2vw] w-[2vw] flex-none items-center justify-center rounded-full text-[0.95vw] font-extrabold text-white"
