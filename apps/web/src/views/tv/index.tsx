@@ -158,6 +158,8 @@ export default function TvView() {
   const doneCount = doneListId
     ? (board.lists.find((l) => l.publicId === doneListId)?.cards.length ?? 0)
     : 0;
+  // The one number on this screen that asks someone to do something.
+  const blockedCount = allCards.filter(isBlocked).length;
 
   return (
     <div className="tv-root flex h-screen w-screen flex-col overflow-hidden bg-light-100 text-light-1000">
@@ -171,6 +173,14 @@ export default function TvView() {
           </span>
         </div>
         <div className="flex items-center gap-[2vw]">
+          {blockedCount > 0 && (
+            <span className="flex items-center gap-[0.6vw] rounded-[0.4vw] bg-[#FEE9E9] px-[0.9vw] py-[0.45vw]">
+              <span className="h-[0.8vw] w-[0.8vw] flex-none rounded-full bg-[#DC2626]" />
+              <span className="text-[1.2vw] font-extrabold uppercase tracking-[0.1em] text-[#B91C1C]">
+                {blockedCount} blocked
+              </span>
+            </span>
+          )}
           <div className="text-right">
             <p className="text-[1.7vw] font-extrabold tabular-nums leading-none tracking-[-0.02em]">
               {doneCount} of {allCards.length}
@@ -405,7 +415,11 @@ function MatrixRow({
               className="block h-full rounded-full"
               style={{
                 width: `${pct}%`,
-                background: outcome.colourCode ?? "#1FAE6B",
+                // Was the label's own colour, which made three bars three
+                // different colours for no reason — decoration on a screen that
+                // uses colour to mean something. Now the bar reports how far
+                // along this outcome actually is.
+                background: progressColour(pct),
               }}
             />
           </span>
@@ -433,10 +447,20 @@ function MatrixRow({
                   key={card.publicId}
                   className="rounded-[0.45vw] border bg-light-50 px-[0.62vw] py-[0.5vw]"
                   style={
-                    fresh
-                      ? { borderColor: "#059669", background: "#F0FDF6" }
-                      : blocked
-                        ? { borderColor: "#F5C4C4", background: "#FEF2F2" }
+                    // Blocked outranks everything else. It used to sit below
+                    // `fresh`, so a blocked card that had just moved lost its red
+                    // for 90 seconds — the loudest state hidden by the least
+                    // important one. The left bar carries further across a room
+                    // than a tinted background does.
+                    blocked
+                      ? {
+                          borderColor: "#F1B4B4",
+                          background: "#FEF2F2",
+                          borderLeftColor: "#DC2626",
+                          borderLeftWidth: "0.34vw",
+                        }
+                      : fresh
+                        ? { borderColor: "#059669", background: "#F0FDF6" }
                         : isDone
                           ? { borderColor: "#E3E7EA", background: "#F4F7F5" }
                           : stage.toLowerCase().includes("working")
@@ -444,9 +468,9 @@ function MatrixRow({
                             : { borderColor: "#E3E7EA" }
                   }
                 >
-                  <div className="flex items-start gap-[0.5vw]">
+                  <div className="flex items-start gap-[0.55vw]">
                     <span
-                      className="mt-[0.28vw] h-[0.6vw] w-[0.6vw] flex-none rounded-full"
+                      className="mt-[0.3vw] h-[0.8vw] w-[0.8vw] flex-none rounded-full"
                       style={{
                         background: blocked
                           ? "#DC2626"
@@ -465,10 +489,15 @@ function MatrixRow({
                       >
                         {card.title}
                       </p>
-                      <p className="mt-[0.05vw] text-[0.82vw] font-semibold text-light-900">
-                        {blocked ? "Blocked" : stage}
-                        {card.dueDate && ` · ${formatDue(new Date(card.dueDate))}`}
-                      </p>
+                      {/* The stage name is dropped: the dot already says it, the
+                          footer has the key, and at 0.82vw nobody across the room
+                          could read it. A due date is not encoded anywhere else,
+                          so it stays. */}
+                      {card.dueDate && (
+                        <p className="mt-[0.12vw] text-[0.82vw] font-semibold text-light-900">
+                          {formatDue(new Date(card.dueDate))}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -484,6 +513,13 @@ function MatrixRow({
       })}
     </>
   );
+}
+
+/** Behind, moving, nearly there — so the bar says something colour can carry. */
+function progressColour(pct: number) {
+  if (pct >= 70) return "#1FAE6B";
+  if (pct >= 30) return "#E58E14";
+  return "#DC2626";
 }
 
 /* ------------------------------------------------------------------ */
