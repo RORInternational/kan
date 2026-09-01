@@ -394,23 +394,31 @@ export default function TvView() {
         .tv-sweep {
           animation: tvsweep 6s ease-in-out infinite;
         }
+        /*
+         * The pulse runs up to the level and stops there — it never crosses
+         * into the empty part of the cell, which would read as progress the
+         * person has not made. 194% is the band's own width times the distance
+         * that lands its right edge exactly on the fill's; the gauge also clips,
+         * so the two agree even mid-transition when the width is still moving.
+         */
         @keyframes tvsweep {
           0% {
-            transform: translateX(-140%);
+            transform: translateX(-110%);
             opacity: 0;
           }
-          10% {
+          8% {
             opacity: 1;
           }
-          40% {
+          45% {
+            transform: translateX(194%);
             opacity: 1;
           }
-          50% {
-            transform: translateX(340%);
+          56% {
+            transform: translateX(194%);
             opacity: 0;
           }
           100% {
-            transform: translateX(340%);
+            transform: translateX(194%);
             opacity: 0;
           }
         }
@@ -515,7 +523,7 @@ function MatrixLayout({
              */}
             <span
               aria-hidden
-              className="tv-gauge absolute inset-y-0 left-0"
+              className="tv-gauge absolute inset-y-0 left-0 overflow-hidden"
               style={{ width: `${pct}%` }}
             >
               <span
