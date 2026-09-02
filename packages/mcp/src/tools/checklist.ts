@@ -58,13 +58,13 @@ export function registerChecklistTools(server: McpServer): void {
     {
       checklistItemPublicId: z.string().describe("The checklist item's public ID"),
       title: z.string().optional().describe("New item title"),
-      isCompleted: z.boolean().optional().describe("Mark item as completed or not"),
+      completed: z.boolean().optional().describe("Mark item as completed or not"),
       index: z.number().int().optional().describe("New position index"),
     },
-    async ({ checklistItemPublicId, title, isCompleted, index }) => {
+    async ({ checklistItemPublicId, title, completed, index }) => {
       const data = await kanRequest("PATCH", `/checklists/items/${checklistItemPublicId}`, {
         title,
-        isCompleted,
+        completed,
         index,
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };

@@ -321,6 +321,16 @@ export const checklistRouter = createTRPCRouter({
         "card:edit",
       );
 
+      if (
+        input.title === undefined &&
+        input.completed === undefined &&
+        input.index === undefined
+      )
+        throw new TRPCError({
+          message: `No fields to update`,
+          code: "BAD_REQUEST",
+        });
+
       const previousTitle = item.title;
 
       let updatedItem;
