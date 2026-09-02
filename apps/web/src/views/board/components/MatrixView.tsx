@@ -1,12 +1,92 @@
 import { t } from "@lingui/core/macro";
 
 import type { RouterOutputs } from "~/utils/api";
-import { buildMatrix, initials, PERSON_COLOURS } from "~/utils/matrix";
+import {
+  buildMatrix,
+  checklistProgress,
+  initials,
+  isOverdue,
+  nextStep,
+  PERSON_COLOURS,
+} from "~/utils/matrix";
 
 type Board = NonNullable<RouterOutputs["board"]["byId"]>;
 
 const formatDue = (due: Date) =>
   due.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+const STAGE_COLOUR = {
+  blocked: "#EF4444",
+  done: "#10B981",
+  working: "#3B82F6",
+  next: "#F59E0B",
+} as const;
+
+/**
+ * Status indicator that doubles as the card's own progress.
+ *
+ * A solid disc means no checklist — status only, nothing to report. A ring
+ * means there is one, and the arc is how far along it is. Two shapes rather
+ * than an empty ring, because an empty ring reads as "no step done yet" when
+ * the truth is "nobody wrote any steps".
+ */
+function StatusMark({
+  colour,
+  progress,
+}: {
+  colour: string;
+  progress: { done: number; total: number } | null;
+}) {
+  if (!progress) {
+    return (
+      <span
+        className="flex h-[1.125rem] w-[1.125rem] flex-none items-center justify-center"
+        aria-hidden
+      >
+        <span
+          className="h-1.5 w-1.5 rounded-full"
+          style={{ background: colour }}
+        />
+      </span>
+    );
+  }
+
+  const pct = Math.round((progress.done / progress.total) * 100);
+
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className="h-[1.125rem] w-[1.125rem] flex-none -rotate-90"
+      role="img"
+      aria-label={`${progress.done} of ${progress.total} steps done`}
+    >
+      <circle
+        cx="16"
+        cy="16"
+        r="13"
+        fill="none"
+        stroke="#9CA3AF"
+        strokeOpacity={0.35}
+        strokeWidth="5"
+      />
+      {pct > 0 && (
+        <circle
+          cx="16"
+          cy="16"
+          r="13"
+          fill="none"
+          stroke={colour}
+          strokeWidth="5"
+          strokeLinecap="round"
+          // pathLength normalises the circumference to 100 so the dash array is
+          // just the percentage — no 2*pi*r arithmetic to keep in sync with r.
+          pathLength={100}
+          strokeDasharray={`${pct} ${100 - pct}`}
+        />
+      )}
+    </svg>
+  );
+}
 
 /**
  * Read-only pivot of the board: outcomes down the side, people across the top.
@@ -43,7 +123,10 @@ export default function MatrixView({
   return (
     <div className="h-full overflow-auto px-[2rem] pb-8">
       <div
-        className="grid min-w-[52rem] overflow-hidden rounded-md border border-light-300 bg-light-50 dark:border-dark-300 dark:bg-dark-50"
+        // No overflow-hidden: it would clip the hover panel that hangs below a
+        // card. The rounded corners lose their clip on the first and last
+        // cells, which is invisible against the same background.
+        className="grid min-w-[52rem] rounded-md border border-light-300 bg-light-50 dark:border-dark-300 dark:bg-dark-50"
         style={{
           gridTemplateColumns: `minmax(13rem, 1.1fr) repeat(${people.length}, minmax(0, 1fr))`,
         }}
@@ -157,56 +240,133 @@ function MatrixRow({
             key={p.publicId}
             className="flex flex-col gap-1.5 border-b border-l border-light-300 p-1.5 dark:border-dark-300"
           >
-            {items.map(({ card, stage, isDone, blocked }) => (
-              <button
-                key={card.publicId}
-                type="button"
-                onClick={() => onOpenCard?.(card.publicId)}
-                className={`rounded border px-2 py-1.5 text-left transition-colors ${
-                  blocked
-                    ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30"
-                    : isDone
-                      ? "border-light-300 bg-light-100 dark:border-dark-300 dark:bg-dark-100"
-                      : stage.toLowerCase().includes("working")
-                        ? "border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/30"
-                        : "border-light-300 bg-light-50 dark:border-dark-300 dark:bg-dark-50"
-                } ${onOpenCard ? "hover:border-light-500 dark:hover:border-dark-500" : ""}`}
-              >
-                <span className="flex items-start gap-1.5">
-                  <span
-                    className={`mt-1 h-1.5 w-1.5 flex-none rounded-full ${
-                      blocked
-                        ? "bg-red-500"
-                        : isDone
-                          ? "bg-emerald-500"
-                          : stage.toLowerCase().includes("working")
-                            ? "bg-blue-500"
-                            : "bg-amber-500"
-                    }`}
-                  />
-                  <span className="min-w-0">
-                    {card.cardNumber !== null && (
-                      <span className="block text-[10px] font-bold tracking-wide text-light-800 dark:text-dark-800">
-                        {cardPrefix}-{card.cardNumber}
+            {items.map(({ card, stage, isDone, isWorking, blocked }) => {
+              const progress = checklistProgress(card);
+              const pct = progress
+                ? Math.round((progress.done / progress.total) * 100)
+                : null;
+              const step = nextStep(card);
+              // Same rule as the wall: the next step is only news while the
+              // card is actually moving. On a card still in the first list it
+              // is just the first item, which the title already implies.
+              const showStep = !!step && (isWorking || blocked);
+              const due = card.dueDate ? new Date(card.dueDate) : null;
+              const late = due && !isDone && isOverdue(due);
+              const colour = blocked
+                ? STAGE_COLOUR.blocked
+                : isDone
+                  ? STAGE_COLOUR.done
+                  : isWorking
+                    ? STAGE_COLOUR.working
+                    : STAGE_COLOUR.next;
+
+              return (
+                <button
+                  key={card.publicId}
+                  type="button"
+                  onClick={() => onOpenCard?.(card.publicId)}
+                  className={`group relative rounded border px-2 py-1.5 text-left transition-colors ${
+                    blocked
+                      ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30"
+                      : isDone
+                        ? "border-light-300 bg-light-100 dark:border-dark-300 dark:bg-dark-100"
+                        : isWorking
+                          ? "border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/30"
+                          : "border-light-300 bg-light-50 dark:border-dark-300 dark:bg-dark-50"
+                  } ${onOpenCard ? "hover:border-light-500 dark:hover:border-dark-500" : ""}`}
+                >
+                  <span className="flex items-start gap-1.5">
+                    <StatusMark colour={colour} progress={progress} />
+                    <span className="min-w-0 flex-1">
+                      {card.cardNumber !== null && (
+                        <span className="block text-[10px] font-bold tracking-wide text-light-800 dark:text-dark-800">
+                          {cardPrefix}-{card.cardNumber}
+                        </span>
+                      )}
+                      <span
+                        className={`block text-[13px] font-semibold leading-snug ${
+                          isDone
+                            ? "text-light-900 line-through dark:text-dark-900"
+                            : "text-light-1000 dark:text-dark-1000"
+                        }`}
+                      >
+                        {card.title}
+                      </span>
+                    </span>
+                    {pct !== null && (
+                      <span
+                        className="flex-none pt-0.5 text-[11px] font-bold tabular-nums leading-none"
+                        style={{ color: colour }}
+                      >
+                        {pct}%
                       </span>
                     )}
-                    <span
-                      className={`block text-[13px] font-semibold leading-snug ${
-                        isDone
-                          ? "text-light-900 line-through dark:text-dark-900"
-                          : "text-light-1000 dark:text-dark-1000"
-                      }`}
-                    >
-                      {card.title}
-                    </span>
-                    <span className="mt-0.5 block text-[11px] font-medium text-light-800 dark:text-dark-800">
-                      {blocked ? `${t`Blocked`} · ${stage}` : stage}
-                      {card.dueDate && ` · ${formatDue(new Date(card.dueDate))}`}
-                    </span>
                   </span>
-                </span>
-              </button>
-            ))}
+
+                  {showStep && (
+                    <span className="mt-1 flex min-w-0 gap-1 pl-[1.625rem] text-[11px] font-semibold text-light-950 dark:text-dark-950">
+                      <span className="flex-none font-bold" style={{ color: colour }}>
+                        &rsaquo;
+                      </span>
+                      <span className="truncate">{step}</span>
+                    </span>
+                  )}
+
+                  <span className="mt-0.5 block pl-[1.625rem] text-[11px] font-medium text-light-800 dark:text-dark-800">
+                    {blocked ? `${t`Blocked`} · ${stage}` : stage}
+                    {due && (
+                      <span className={late ? "font-bold text-red-600 dark:text-red-400" : ""}>
+                        {" · "}
+                        {formatDue(due)}
+                        {late && ` · ${t`overdue`}`}
+                      </span>
+                    )}
+                  </span>
+
+                  {progress && (
+                    // The wall hides this panel in fullscreen, because a kiosk
+                    // pointer parked over a card would leave one open all day.
+                    // At a desk there is a person driving the pointer, so this
+                    // is where it belongs.
+                    <span className="pointer-events-none absolute left-2 top-[calc(100%+2px)] z-20 hidden w-60 rounded-md border border-light-400 bg-light-50 p-2 text-left shadow-lg group-hover:block dark:border-dark-400 dark:bg-dark-100">
+                      <span className="mb-1 flex justify-between border-b border-light-300 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-light-900 dark:border-dark-300 dark:text-dark-900">
+                        <span>{t`Checklist`}</span>
+                        <span className="tabular-nums">
+                          {progress.done} / {progress.total}
+                        </span>
+                      </span>
+                      {card.checklists.map((group) => (
+                        <span key={group.publicId} className="block">
+                          {card.checklists.length > 1 && (
+                            <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.1em] text-light-800 dark:text-dark-800">
+                              {group.name}
+                            </span>
+                          )}
+                          {group.items.map((item) => (
+                            <span
+                              key={item.publicId}
+                              className={`flex gap-1 py-px text-[12px] leading-snug ${
+                                item.completed
+                                  ? "text-light-800 line-through dark:text-dark-800"
+                                  : "font-semibold text-light-1000 dark:text-dark-1000"
+                              }`}
+                            >
+                              <span
+                                className="flex-none"
+                                style={{ color: item.completed ? STAGE_COLOUR.done : "#9CA3AF" }}
+                              >
+                                {item.completed ? "\u2713" : "\u25a2"}
+                              </span>
+                              {item.title}
+                            </span>
+                          ))}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         );
       })}

@@ -9,6 +9,7 @@ import {
   checklistProgress,
   initials,
   isBlocked,
+  isOverdue,
   nextStep,
 } from "~/utils/matrix";
 
@@ -41,16 +42,6 @@ const LANE_COLOURS = [
 
 const formatDue = (due: Date) =>
   due.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
-
-/**
- * Overdue is judged against the start of today, not the current moment: a card
- * due "3 Sep" is not late at 9am on the 3rd. The board page draws the same line.
- */
-const isOverdue = (due: Date) => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  return due.getTime() < startOfToday.getTime();
-};
 
 /**
  * The status indicator, which doubles as the card's own progress.
@@ -635,7 +626,7 @@ function MatrixRow({
   cellOf: (
     labelPublicId: string,
     memberPublicId: string,
-  ) => { card: Card; stage: string; isDone: boolean }[];
+  ) => { card: Card; stage: string; isDone: boolean; isWorking: boolean }[];
   done: number;
   total: number;
   pct: number;
@@ -735,12 +726,11 @@ function MatrixCard({
   entry,
   fresh,
 }: {
-  entry: { card: Card; stage: string; isDone: boolean };
+  entry: { card: Card; stage: string; isDone: boolean; isWorking: boolean };
   fresh: boolean;
 }) {
-  const { card, stage, isDone } = entry;
+  const { card, stage, isDone, isWorking: working } = entry;
   const blocked = isBlocked(card);
-  const working = stage.toLowerCase().includes("working");
   const progress = checklistProgress(card);
   const step = nextStep(card);
 

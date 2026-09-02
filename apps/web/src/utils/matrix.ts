@@ -16,10 +16,29 @@ export const isBlockedLabel = (name: string) =>
 export const isBlocked = (card: Card) =>
   card.labels.some((l) => isBlockedLabel(l.name));
 
+/**
+ * Overdue is judged against the start of today, not the current moment: a card
+ * due "3 Sep" is not late at 9am on the 3rd.
+ */
+export const isOverdue = (due: Date) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return due.getTime() < startOfToday.getTime();
+};
+
 export interface MatrixCard {
   card: Card;
   stage: string;
   isDone: boolean;
+  /**
+   * In flight: not waiting in the first list, not finished in the last one.
+   *
+   * Derived from position for the same reason `isDone` is — the list names are
+   * the team's to change. This used to be `stage.includes("working")`, which
+   * meant renaming "Working now" would have silently dropped the blue stage
+   * colour and the next-step line with no error anywhere.
+   */
+  isWorking: boolean;
   blocked: boolean;
 }
 
@@ -46,17 +65,20 @@ export interface Matrix {
  * than a third axis.
  *
  * "Done" is the last list: Kan has no isDone flag, so order is the only signal.
+ * Everything between the first list and the last one is in flight.
  */
 export function buildMatrix(board: Board): Matrix {
+  const lastIndex = board.lists.length - 1;
   const doneListId = board.lists.length
-    ? board.lists[board.lists.length - 1]?.publicId
+    ? board.lists[lastIndex]?.publicId
     : undefined;
 
-  const rows: MatrixCard[] = board.lists.flatMap((list) =>
+  const rows: MatrixCard[] = board.lists.flatMap((list, listIndex) =>
     list.cards.map((card) => ({
       card,
       stage: list.name,
       isDone: list.publicId === doneListId,
+      isWorking: listIndex > 0 && listIndex < lastIndex,
       blocked: isBlocked(card),
     })),
   );
