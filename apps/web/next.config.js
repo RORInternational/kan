@@ -104,6 +104,25 @@ const config = {
         source: "/.well-known/oauth-protected-resource",
         destination: "/api/well-known/oauth-protected-resource",
       },
+      /**
+       * RFC 9728 has the client insert the well-known segment *before* the
+       * resource path, so a client discovering /api/mcp asks for
+       * /.well-known/oauth-protected-resource/api/mcp. Without these the
+       * suffixed form falls through to [workspaceSlug] and the client is
+       * handed a 200 of board HTML — which it reports as metadata that is
+       * missing its required fields, rather than as a missing endpoint.
+       *
+       * One MCP endpoint is guarded by one authorization server here, so the
+       * same document answers every resource path.
+       */
+      {
+        source: "/.well-known/oauth-protected-resource/:path*",
+        destination: "/api/well-known/oauth-protected-resource",
+      },
+      {
+        source: "/.well-known/oauth-authorization-server/:path*",
+        destination: "/api/well-known/oauth-authorization-server",
+      },
     ];
   },
 };
