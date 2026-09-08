@@ -27,6 +27,7 @@ export const create = async (
     fromDescription?: string;
     toDescription?: string;
     createdBy: string;
+    source?: string | null;
     commentId?: number;
     fromComment?: string;
     toComment?: string;
@@ -53,6 +54,7 @@ export const create = async (
       fromDescription: activityInput.fromDescription,
       toDescription: activityInput.toDescription,
       createdBy: activityInput.createdBy,
+      source: activityInput.source,
       commentId: activityInput.commentId,
       fromComment: activityInput.fromComment,
       toComment: activityInput.toComment,
@@ -82,6 +84,7 @@ export const bulkCreate = async (
     fromDescription?: string;
     toDescription?: string;
     createdBy: string;
+    source?: string | null;
     fromDueDate?: Date;
     toDueDate?: Date;
     sourceBoardId?: number;

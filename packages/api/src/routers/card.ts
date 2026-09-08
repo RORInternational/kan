@@ -18,6 +18,15 @@ import {
   commentDeleteResponseSchema,
   commentResponseSchema,
 } from "../schemas";
+
+/**
+ * Optional provenance a relaying client (the WhatsApp bot) may attach to a
+ * mutation — e.g. "WhatsApp:Kim (+61412195994)". It is stored verbatim on the
+ * card activity. Client-asserted and unverified: the server sees only the one
+ * shared credential, so this records what the caller claimed, never what it
+ * proved. Never used for any authorisation decision.
+ */
+const sourceSchema = z.string().max(200).optional();
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { mergeActivities } from "../utils/activities";
 import { sendMentionEmails } from "../utils/notifications";
@@ -52,6 +61,7 @@ export const cardRouter = createTRPCRouter({
         memberPublicIds: z.array(z.string().min(12)),
         position: z.enum(["start", "end"]),
         dueDate: z.date().nullable().optional(),
+        source: sourceSchema,
       }),
     )
     .output(cardCreateResponseSchema)
@@ -95,6 +105,14 @@ export const cardRouter = createTRPCRouter({
           code: "INTERNAL_SERVER_ERROR",
         });
 
+      await cardActivityRepo.create(ctx.db, {
+        type: "card.created" as const,
+        cardId: newCardId,
+        toTitle: input.title,
+        createdBy: userId,
+        source: input.source,
+      });
+
       if (newCardId && input.labelPublicIds.length) {
         const labels = await labelRepo.getAllByPublicIds(
           ctx.db,
@@ -128,6 +146,7 @@ export const cardRouter = createTRPCRouter({
           cardId: cardLabel.cardId,
           labelId: cardLabel.labelId,
           createdBy: userId,
+          source: input.source,
         }));
 
         await cardActivityRepo.bulkCreate(ctx.db, cardActivitesInsert);
@@ -167,6 +186,7 @@ export const cardRouter = createTRPCRouter({
           cardId: cardMember.cardId,
           workspaceMemberId: cardMember.workspaceMemberId,
           createdBy: userId,
+          source: input.source,
         }));
 
         await cardActivityRepo.bulkCreate(ctx.db, cardActivitesInsert);

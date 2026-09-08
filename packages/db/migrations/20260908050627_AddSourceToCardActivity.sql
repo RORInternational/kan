@@ -1,0 +1,1 @@
+ALTER TABLE "card_activity" ADD COLUMN "source" varchar(200);

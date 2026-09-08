@@ -292,6 +292,7 @@ export const checklistRouter = createTRPCRouter({
         title: z.string().min(1).max(500).transform(stripHtml).optional(),
         completed: z.boolean().optional(),
         index: z.number().int().min(0).optional(),
+        source: z.string().max(200).optional(),
       }),
     )
     .output(checklistItemSchema)
@@ -366,6 +367,7 @@ export const checklistRouter = createTRPCRouter({
           cardId: item.checklist.cardId,
           toTitle: updatedItem.title,
           createdBy: userId,
+          source: input.source,
         });
       }
 

@@ -141,6 +141,16 @@ export const cardActivities = pgTable("card_activity", {
   toTitle: text("toTitle"),
   fromDescription: text("fromDescription"),
   toDescription: text("toDescription"),
+  /**
+   * Where this action came from, as the caller claimed it — e.g.
+   * "WhatsApp:Kim (+61412195994)". Null for actions in the web app.
+   *
+   * Client-asserted, not verified: every MCP call presents the same
+   * `accounts ror` credential, so the server cannot tell one client from
+   * another. This records what the caller said, not what it proved. Treat it
+   * as provenance, never as authorisation.
+   */
+  source: varchar("source", { length: 200 }),
   createdBy: uuid("createdBy").references(() => users.id, {
     onDelete: "set null",
   }),

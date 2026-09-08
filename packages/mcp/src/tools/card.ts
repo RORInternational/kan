@@ -2,6 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { kanRequest } from "../client.js";
 
+const SOURCE_DESC =
+  "Provenance of the request when you are relaying it from a chat: who asked and via what channel, e.g. 'WhatsApp:reuben (+61400834934)'. Stored on the card history as a note. Omit it when the person is acting in the app directly.";
+
 export function registerCardTools(server: McpServer): void {
   server.tool(
     "create_card",
@@ -23,8 +26,9 @@ export function registerCardTools(server: McpServer): void {
         .enum(["start", "end"])
         .optional()
         .describe("Where to insert the card in the list (default: end)"),
+      source: z.string().optional().describe(SOURCE_DESC),
     },
-    async ({ listPublicId, title, description, dueDate, labelPublicIds, memberPublicIds, position }) => {
+    async ({ listPublicId, title, description, dueDate, labelPublicIds, memberPublicIds, position, source }) => {
       const data = await kanRequest("POST", "/cards", {
         listPublicId,
         title,
@@ -33,6 +37,7 @@ export function registerCardTools(server: McpServer): void {
         labelPublicIds: labelPublicIds ?? [],
         memberPublicIds: memberPublicIds ?? [],
         position: position ?? "end",
+        source,
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },

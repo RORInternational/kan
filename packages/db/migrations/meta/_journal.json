@@ -260,6 +260,13 @@
       "when": 1787028069819,
       "tag": "20260818044109_AddOAuthProviderTables",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788843987228,
+      "tag": "20260908050627_AddSourceToCardActivity",
+      "breakpoints": true
     }
   ]
 }

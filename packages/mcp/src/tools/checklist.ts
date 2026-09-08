@@ -60,12 +60,19 @@ export function registerChecklistTools(server: McpServer): void {
       title: z.string().optional().describe("New item title"),
       completed: z.boolean().optional().describe("Mark item as completed or not"),
       index: z.number().int().optional().describe("New position index"),
+      source: z
+        .string()
+        .optional()
+        .describe(
+          "Provenance when relaying from a chat: who reported this and via what channel, e.g. 'WhatsApp:Kim (+61412195994)'. Stored on the card history. Omit for actions taken in the app directly.",
+        ),
     },
-    async ({ checklistItemPublicId, title, completed, index }) => {
+    async ({ checklistItemPublicId, title, completed, index, source }) => {
       const data = await kanRequest("PATCH", `/checklists/items/${checklistItemPublicId}`, {
         title,
         completed,
         index,
+        source,
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     },
