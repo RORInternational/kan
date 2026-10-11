@@ -5,7 +5,7 @@ import { useModal } from "~/providers/modal";
 
 interface Props {
   children: React.ReactNode;
-  modalSize?: "sm" | "md" | "lg";
+  modalSize?: "sm" | "md" | "lg" | "xl";
   positionFromTop?: "sm" | "md" | "lg";
   isVisible?: boolean;
   closeOnClickOutside?: boolean;
@@ -34,6 +34,7 @@ const Modal: React.FC<Props> = ({
     sm: "max-w-[400px]",
     md: "max-w-[550px]",
     lg: "max-w-[800px]",
+    xl: "max-w-[1200px]",
   };
 
   const positionFromTopMap = {
@@ -62,7 +63,9 @@ const Modal: React.FC<Props> = ({
         </Transition.Child>
 
         <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
-          <div className={`flex min-h-full justify-center p-4 text-center sm:p-0 ${centered ? "items-center" : "items-start sm:items-start"}`}>
+          <div
+            className={`flex min-h-full justify-center p-4 text-center sm:p-0 ${centered ? "items-center" : "items-start sm:items-start"}`}
+          >
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"

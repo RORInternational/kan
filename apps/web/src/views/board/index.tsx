@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { DragDropContext, Draggable } from "react-beautiful-dnd";
 import { useForm } from "react-hook-form";
 import {
+  HiOutlineInboxArrowDown,
   HiOutlinePlusSmall,
   HiOutlineRectangleStack,
   HiOutlineSquare3Stack3D,
@@ -49,14 +50,15 @@ import { CardContextMembersModal } from "./components/CardContextMembersModal";
 import { CardContextMenu } from "./components/CardContextMenu";
 import { CardContextMoveListModal } from "./components/CardContextMoveListModal";
 import { DeleteBoardConfirmation } from "./components/DeleteBoardConfirmation";
-import { MoveBoardForm } from "./components/MoveBoardForm";
 import { DeleteListConfirmation } from "./components/DeleteListConfirmation";
 import Filters from "./components/Filters";
 import List from "./components/List";
 import MatrixView from "./components/MatrixView";
+import { MoveBoardForm } from "./components/MoveBoardForm";
 import { NewCardForm } from "./components/NewCardForm";
 import { NewListForm } from "./components/NewListForm";
 import { NewTemplateForm } from "./components/NewTemplateForm";
+import { TaskDumpModal } from "./components/TaskDumpModal";
 import UpdateBoardSlugButton from "./components/UpdateBoardSlugButton";
 import { UpdateBoardSlugForm } from "./components/UpdateBoardSlugForm";
 import VisibilityButton from "./components/VisibilityButton";
@@ -86,8 +88,13 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
     direction: "horizontal",
   });
 
-  const { canCreateList, canEditList, canEditCard, canEditBoard } =
-    usePermissions();
+  const {
+    canCreateCard,
+    canCreateList,
+    canEditList,
+    canEditCard,
+    canEditBoard,
+  } = usePermissions();
 
   const { tooltipContent: createListShortcutTooltipContent } =
     useKeyboardShortcut({
@@ -429,6 +436,21 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
         </Modal>
 
         <Modal
+          modalSize="xl"
+          centered
+          closeOnClickOutside={false}
+          isVisible={isOpen && modalContentType === "TASK_DUMP"}
+        >
+          <TaskDumpModal
+            boardPublicId={boardId ?? ""}
+            boardName={boardData?.name ?? t`Board`}
+            existingLists={boardData?.lists ?? []}
+            labels={boardData?.labels ?? []}
+            canCreateList={canCreateList}
+          />
+        </Modal>
+
+        <Modal
           modalSize="sm"
           isVisible={isOpen && modalContentType === "NEW_WORKSPACE"}
         >
@@ -629,7 +651,10 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
                         : "bg-light-50 text-light-950 hover:bg-light-100 dark:bg-dark-50 dark:text-dark-950 dark:hover:bg-dark-100"
                     }`}
                   >
-                    <HiOutlineViewColumns className="h-4 w-4" aria-hidden="true" />
+                    <HiOutlineViewColumns
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    />
                     {t`Board`}
                   </button>
                   <button
@@ -642,7 +667,10 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
                         : "bg-light-50 text-light-950 hover:bg-light-100 dark:bg-dark-50 dark:text-dark-950 dark:hover:bg-dark-100"
                     }`}
                   >
-                    <HiOutlineTableCells className="h-4 w-4" aria-hidden="true" />
+                    <HiOutlineTableCells
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    />
                     {t`Matrix`}
                   </button>
                 </div>
@@ -661,6 +689,29 @@ export default function BoardPage({ isTemplate }: { isTemplate?: boolean }) {
                   </Button>
                 </Tooltip>
               </>
+            )}
+            {!isTemplate && (
+              <Tooltip
+                content={
+                  !canCreateCard
+                    ? t`You don't have permission`
+                    : t`Turn a brain dump into organized lists and tasks`
+                }
+              >
+                <Button
+                  variant="secondary"
+                  iconLeft={
+                    <HiOutlineInboxArrowDown
+                      className="h-5 w-5"
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={() => openModal("TASK_DUMP")}
+                  disabled={!boardData || !canCreateCard}
+                >
+                  {t`Task dump`}
+                </Button>
+              </Tooltip>
             )}
             <Tooltip
               content={

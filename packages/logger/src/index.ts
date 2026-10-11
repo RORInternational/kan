@@ -1,5 +1,6 @@
 import { Axiom } from "@axiomhq/js";
 import pino from "pino";
+import pretty from "pino-pretty";
 
 const isDev = process.env.NODE_ENV !== "production";
 const isCloud = process.env.NEXT_PUBLIC_KAN_ENV === "cloud";
@@ -30,14 +31,11 @@ export const logger = useAxiom
         { stream: createAxiomStream(axiomToken, axiomDataset), level },
       ]),
     )
-  : pino({
-      level,
-      ...(isDev && {
-        transport: {
-          target: "pino-pretty",
-          options: { colorize: true, ignore: "pid,hostname", translateTime: "HH:MM:ss" },
-        },
-      }),
-    });
+  : pino(
+      { level },
+      isDev
+        ? pretty({ colorize: true, ignore: "pid,hostname", translateTime: "HH:MM:ss" })
+        : undefined,
+    );
 
 export const createLogger = (module: string) => logger.child({ module });

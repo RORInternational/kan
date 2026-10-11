@@ -403,7 +403,7 @@ export function InviteMemberForm({
             <Input
               id="account-password"
               type="password"
-              placeholder={t`Initial password`}
+              placeholder={t`Choose a password`}
               autoComplete="new-password"
               {...registerAccount("password", { required: true })}
               errorMessage={accountErrors.password?.message}
@@ -428,7 +428,7 @@ export function InviteMemberForm({
             <div className="flex items-start gap-2 rounded-md bg-light-100 p-3 text-xs text-light-900 dark:bg-dark-200 dark:text-dark-900">
               <HiInformationCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                {t`The account can sign in immediately. Passwords must contain at least 8 characters.`}
+                {t`Choose a password for this new account. It can be used to sign in immediately and must contain at least 8 characters.`}
               </p>
             </div>
           </div>

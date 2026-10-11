@@ -67,7 +67,7 @@ const config = {
       },
     },
   },
-  serverExternalPackages: ["pino"],
+  serverExternalPackages: ["pino", "pino-pretty"],
 
   experimental: {
     // instrumentationHook: true,

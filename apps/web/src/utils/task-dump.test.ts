@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getPriorityLabelPublicIds, organizeTaskDump } from "./task-dump";
+import {
+  getPriorityLabelPublicIds,
+  organizeTaskDump,
+  suggestTaskList,
+} from "./task-dump";
 
 describe("organizeTaskDump", () => {
   it("extracts, cleans, and de-duplicates tasks", () => {
@@ -30,6 +34,55 @@ describe("organizeTaskDump", () => {
       { priority: "medium", area: "health" },
       { priority: "low", area: "ideas" },
     ]);
+  });
+});
+
+describe("suggestTaskList", () => {
+  const lists = [
+    { publicId: "abcdefghijkl", name: "Critical" },
+    { publicId: "mnopqrstuvwx", name: "Work" },
+  ];
+
+  it("prefers an existing priority list for urgent tasks", () => {
+    expect(
+      suggestTaskList(
+        {
+          title: "Fix the urgent client issue today",
+          priority: "high",
+          area: "work",
+          reason: "urgent",
+        },
+        lists,
+      ),
+    ).toEqual({ name: "Critical", existingListPublicId: "abcdefghijkl" });
+  });
+
+  it("prefers a matching existing area list", () => {
+    expect(
+      suggestTaskList(
+        {
+          title: "Review the quarterly project report",
+          priority: "medium",
+          area: "work",
+          reason: "near-term",
+        },
+        lists,
+      ),
+    ).toEqual({ name: "Work", existingListPublicId: "mnopqrstuvwx" });
+  });
+
+  it("suggests a new area list when the board has no match", () => {
+    expect(
+      suggestTaskList(
+        {
+          title: "Book a dentist appointment",
+          priority: "medium",
+          area: "health",
+          reason: "near-term",
+        },
+        lists,
+      ),
+    ).toEqual({ name: "Health" });
   });
 });
 

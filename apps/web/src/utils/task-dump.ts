@@ -24,6 +24,16 @@ export interface OrganizedTask {
   reason: TaskReason;
 }
 
+export interface TaskListSuggestion {
+  name: string;
+  existingListPublicId?: string;
+}
+
+interface ExistingTaskList {
+  publicId: string;
+  name: string;
+}
+
 const HIGH_PRIORITY_TERMS =
   /\b(urgent|asap|immediately|critical|overdue|blocked|today|tonight|must|deadline|due|submit|launch)\b/i;
 const MEDIUM_PRIORITY_TERMS =
@@ -126,6 +136,81 @@ export const organizeTaskDump = (input: string): OrganizedTask[] => {
       },
     ];
   });
+};
+
+const PRIORITY_LIST_TERMS: Record<TaskPriority, string[]> = {
+  high: ["critical", "urgent", "do first", "high priority"],
+  medium: ["to do", "todo", "next", "plan next", "planned", "backlog"],
+  low: ["later", "someday", "low priority"],
+};
+
+const AREA_LIST_NAMES: Record<TaskArea, string> = {
+  work: "Work",
+  personal: "Personal",
+  admin: "Admin",
+  health: "Health",
+  errands: "Errands",
+  ideas: "Ideas",
+};
+
+const normalizeListName = (value: string): string =>
+  value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, " ");
+
+/**
+ * Suggests the best destination for a task while preferring lists that are
+ * already on the board. Priority workflow names (for example, "Critical")
+ * win over broad area names, followed by a direct word overlap with the task.
+ */
+export const suggestTaskList = (
+  task: OrganizedTask,
+  existingLists: ExistingTaskList[],
+): TaskListSuggestion => {
+  const normalizedTitle = normalizeListName(task.title);
+  const areaName = AREA_LIST_NAMES[task.area];
+
+  const scoredLists = existingLists.map((list, index) => {
+    const normalizedName = normalizeListName(list.name);
+    let score = 0;
+
+    if (
+      PRIORITY_LIST_TERMS[task.priority].some(
+        (term) => normalizedName === term || normalizedName.includes(term),
+      )
+    ) {
+      score += 6;
+    }
+
+    if (normalizedName === normalizeListName(areaName)) score += 5;
+
+    const meaningfulNameWords = normalizedName
+      .split(" ")
+      .filter((word) => word.length >= 4);
+    if (
+      meaningfulNameWords.some((word) =>
+        normalizedTitle.split(" ").includes(word),
+      )
+    ) {
+      score += 3;
+    }
+
+    return { list, score, index };
+  });
+
+  const bestMatch = scoredLists.sort(
+    (left, right) => right.score - left.score || left.index - right.index,
+  )[0];
+
+  if (bestMatch && bestMatch.score > 0) {
+    return {
+      name: bestMatch.list.name,
+      existingListPublicId: bestMatch.list.publicId,
+    };
+  }
+
+  return { name: areaName };
 };
 
 export const getPriorityLabelPublicIds = (
